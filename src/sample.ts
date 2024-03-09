@@ -6,48 +6,6 @@ import { getModelViewMatrix } from './util/math'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/Addons.js'
 
-// class webgpuDevice {
-//     adapter?: GPUAdapter;
-//     device?: GPUDevice;
-//     context?: GPUCanvasContext;
-//     format?: GPUTextureFormat;
-//     size?: { width: number, height: number };
-//     async init(canvas: HTMLCanvasElement) {
-//         if (!navigator.gpu)
-//             throw new Error('Not Support WebGPU')
-//         let _ad = await navigator.gpu.requestAdapter({
-//             powerPreference: 'high-performance',
-//         })
-//         if (!_ad) throw new Error('No Adapter Found')
-//         this.adapter = _ad as GPUAdapter;
-//         let _de = await this.adapter.requestDevice({
-//             requiredLimits: {
-//                 maxStorageBufferBindingSize: this.adapter.limits.maxStorageBufferBindingSize
-//             }
-//         });
-//         if (!_de) throw new Error('No Device Found')
-//         this.device = _de as GPUDevice;
-
-//         let _context = canvas.getContext('webgpu') as GPUCanvasContext;
-//         if (!_context) throw new Error('No GPUContext Found')
-//         this.context = _context;
-
-//         this.format = navigator.gpu.getPreferredCanvasFormat();
-//         const devicePixelRatio = window.devicePixelRatio || 1;
-//         canvas.width = canvas.clientWidth * devicePixelRatio;
-//         canvas.height = canvas.clientHeight * devicePixelRatio;
-//         this.size = { width: canvas.width, height: canvas.height };
-
-//         this.context.configure({
-//             device: this.device,
-//             format: this.format,
-//             alphaMode: 'opaque'
-//         });
-//         return this;
-//     }
-// }
-
-
 // initialize webgpu device & config canvas context
 async function initWebGPU(canvas: HTMLCanvasElement) {
     if (!navigator.gpu)
@@ -64,11 +22,12 @@ async function initWebGPU(canvas: HTMLCanvasElement) {
     })
     const context = canvas.getContext('webgpu') as GPUCanvasContext
     const format = navigator.gpu.getPreferredCanvasFormat()
-    const devicePixelRatio = window.devicePixelRatio || 1
-    canvas.width = canvas.clientWidth * devicePixelRatio
-    canvas.height = canvas.clientHeight * devicePixelRatio
-    const size = { width: canvas.width, height: canvas.height }
-    console.log('size', size)
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    console.log('size', canvas)
+    canvas.width = canvas.clientWidth * devicePixelRatio;
+    canvas.height = canvas.clientHeight * devicePixelRatio;
+    const size = { width: canvas.clientWidth * devicePixelRatio, height: canvas.clientHeight * devicePixelRatio };
+    console.log('size', canvas)
     context.configure({
         device, format,
         // prevent chrome warning after v102
@@ -347,7 +306,6 @@ async function run() {
         orbit.update();
         const pMatrix = cam.projectionMatrix.clone();
         const mvMatrix = cam.matrixWorldInverse.clone();
-        console.log('mvMatrix', mvMatrix.elements);
         const mvpMatrix = pMatrix.multiply(mvMatrix);
         device.queue.writeBuffer(pipelineObj.projectionBuffer, 0, new Float32Array(mvpMatrix.elements))
         draw(device, context, pipelineObj)
@@ -380,15 +338,15 @@ async function run() {
         cam.updateProjectionMatrix();
     })
 
-    const range = document.querySelector('input') as HTMLInputElement
-    range.max = MAX.toString()
-    range.value = NUM.toString()
-    range.addEventListener('input', (e: Event) => {
-        NUM = +(e.target as HTMLInputElement).value
-        const span = document.querySelector('#num') as HTMLSpanElement
-        span.innerHTML = NUM.toString()
-        inputArray[0] = NUM
-        device.queue.writeBuffer(pipelineObj.inputBuffer, 0, inputArray)
-    })
+    // const range = document.querySelector('input') as HTMLInputElement
+    // range.max = MAX.toString()
+    // range.value = NUM.toString()
+    // range.addEventListener('input', (e: Event) => {
+    //     NUM = +(e.target as HTMLInputElement).value
+    //     const span = document.querySelector('#num') as HTMLSpanElement
+    //     span.innerHTML = NUM.toString()
+    //     inputArray[0] = NUM
+    //     device.queue.writeBuffer(pipelineObj.inputBuffer, 0, inputArray)
+    // })
 }
 run()
