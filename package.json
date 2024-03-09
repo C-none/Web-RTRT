@@ -1,0 +1,23 @@
+{
+  "name": "web-rtrt",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "^5.2.2",
+    "vite": "^5.1.4"
+  },
+  "dependencies": {
+    "@types/dom-webcodecs": "^0.1.11",
+    "@types/three": "^0.162.0",
+    "@webgpu/types": "^0.1.40",
+    "gl-matrix": "^3.4.3",
+    "three": "^0.162.0",
+    "webgpu": "^0.1.16"
+  }
+}
