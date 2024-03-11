@@ -6,6 +6,29 @@ import { getModelViewMatrix } from './util/math'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/Addons.js'
 
+// import { GLTFLoader } from 'three/examples/jsm/Addons.js';
+// let loader = new GLTFLoader().setPath('./assets/sponza/');
+// let model: THREE.Group<THREE.Object3DEventMap>;
+// loader.load('./Sponza.gltf', async function (gltf) {
+//     model = gltf.scene;
+//     console.log(model);
+//     model.traverse((child) => {
+//         if (child instanceof THREE.Mesh) {
+//             // const emissive = child.material.emissive;
+//             let flag = true;
+//             flag &&= (child.geometry.attributes.position !== undefined);
+//             flag &&= (child.geometry.attributes.normal !== undefined);
+//             flag &&= (child.geometry.attributes.uv !== undefined);
+//             flag &&= (child.geometry.attributes.tangent !== undefined);
+//             if (!flag) {
+//                 console.log(child);
+//             }
+//         }
+//     });
+// });
+
+
+
 // initialize webgpu device & config canvas context
 async function initWebGPU(canvas: HTMLCanvasElement) {
     if (!navigator.gpu)
@@ -23,14 +46,11 @@ async function initWebGPU(canvas: HTMLCanvasElement) {
     const context = canvas.getContext('webgpu') as GPUCanvasContext
     const format = navigator.gpu.getPreferredCanvasFormat()
     const devicePixelRatio = window.devicePixelRatio || 1;
-    console.log('size', canvas)
     canvas.width = canvas.clientWidth * devicePixelRatio;
     canvas.height = canvas.clientHeight * devicePixelRatio;
     const size = { width: canvas.clientWidth * devicePixelRatio, height: canvas.clientHeight * devicePixelRatio };
-    console.log('size', canvas)
     context.configure({
         device, format,
-        // prevent chrome warning after v102
         alphaMode: 'opaque'
     })
     return { device, context, format, size }
