@@ -3,11 +3,7 @@
     "target": "ESNext",
     "useDefineForClassFields": true,
     "module": "ESNext",
-    "lib": [
-      "ESNext",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
     /* Bundler mode */
     "moduleResolution": "bundler",
@@ -26,9 +22,8 @@
       "@webgpu/types",
       "@types/dom-webcodecs",
       "@types/three",
+      "@types/node"
     ]
   },
-  "include": [
-    "src"
-  ]
+  "include": ["src"]
 }

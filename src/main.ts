@@ -2,39 +2,48 @@
 // import { OrbitControls } from 'three/examples/jsm/Addons.js'
 import { webGPUDevice } from './util/device.ts'
 import { Display } from './display.ts'
-import DISPLAY_VERTEX from './shaders/display/display.vert.wgsl?raw'
-import DISPLAY_FRAG from './shaders/display/display.frag.wgsl?raw'
-
-
+import { gltfmodel } from './gltf.ts'
+import { rayTracing } from './raytracing.ts';
 
 class Application {
     device: webGPUDevice;
-    currentFrameBuffer?: GPUBuffer;
-    cmdBuffer?: GPUCommandBuffer;
-    display?: Display;
+    currentFrameBuffer: GPUTexture;
+    cmdBuffer: GPUCommandBuffer;
+    display: Display;
+    rayTracingPipeline: rayTracing;
+    model: gltfmodel;
 
-    constructor() {
+    async init() {
         this.device = new webGPUDevice();
-        this.device.init(document.getElementById('canvas') as HTMLCanvasElement);
+        await this.device.init(await document.querySelector('canvas') as HTMLCanvasElement);
 
-        const currentFrameBuffer = this.device.device.createBuffer({
-            size: this.device.size.width * this.device.size.height * 4 * Float32Array.BYTES_PER_ELEMENT,
-            usage: GPUBufferUsage.STORAGE
+        const currentFrameBuffer = this.device.device.createTexture({
+            size: {
+                width: this.device.canvas.width,
+                height: this.device.canvas.height,
+                depthOrArrayLayers: 1,
+            },
+            format: 'rgba16float',
+            usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
         });
-        this.display = new Display(this.device, currentFrameBuffer);
+
+        this.display = new Display(this.device, currentFrameBuffer.createView({}));
+        this.model = new gltfmodel();
+        await this.model.init("./assets/sponza/Sponza.gltf", this.device);
+        this.rayTracingPipeline = new rayTracing(this.device, this.model, currentFrameBuffer);
+        console.log("my model:", this.model);
     }
 
     buildCmdBuffer() {
         const commandEncoder = this.device.device.createCommandEncoder();
 
         // display pipeline
-        this.display.buildPipeline(commandEncoder, this.device.context.getCurrentTexture().createView());
+        // this.display.buildPipeline(commandEncoder, this.device.context.getCurrentTexture().createView());
 
         this.cmdBuffer = commandEncoder.finish();
         this.device.device.queue.submit([this.cmdBuffer]);
     }
-
-    async init() {
-
-    }
 }
+
+const app = new Application();
+await app.init();

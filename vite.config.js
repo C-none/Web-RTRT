@@ -5,4 +5,5 @@ export default defineConfig({
     outDir: "./docs",
     emptyOutDir: true,
   },
+  port: 5173,
 });

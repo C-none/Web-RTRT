@@ -5,27 +5,49 @@ import * as box from './util/box'
 import { getModelViewMatrix } from './util/math'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/Addons.js'
+import { GLTFLoader } from 'three/examples/jsm/Addons.js';
+import { shaders } from './shaders/manager'
 
-// import { GLTFLoader } from 'three/examples/jsm/Addons.js';
-// let loader = new GLTFLoader().setPath('./assets/sponza/');
-// let model: THREE.Group<THREE.Object3DEventMap>;
-// loader.load('./Sponza.gltf', async function (gltf) {
-//     model = gltf.scene;
-//     console.log(model);
-//     model.traverse((child) => {
-//         if (child instanceof THREE.Mesh) {
-//             // const emissive = child.material.emissive;
-//             let flag = true;
-//             flag &&= (child.geometry.attributes.position !== undefined);
-//             flag &&= (child.geometry.attributes.normal !== undefined);
-//             flag &&= (child.geometry.attributes.uv !== undefined);
-//             flag &&= (child.geometry.attributes.tangent !== undefined);
-//             if (!flag) {
-//                 console.log(child);
-//             }
-//         }
-//     });
-// });
+let loader = new GLTFLoader();
+let model: THREE.Group<THREE.Object3DEventMap>;
+// ./assets/bistro_external/external.gltf
+// ./assets/sponza/Sponza.gltf
+
+loader.load('./assets/sponza/Sponza.gltf', async function (gltf) {
+    model = gltf.scene;
+    console.log(model);
+    let cnt: number = 0;
+    let cnt2: number = 0;
+    model.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+            if (child instanceof THREE.Mesh) {
+                let material = child.material;
+                if (!material.normalMap) {
+                    model.remove(child);
+                    console.log(child);
+                }
+            }
+            // cnt += child.geometry.attributes.position.count;
+            // let emi = child.material.emissive;
+            // if (emi.getHex() == new THREE.Color(1, 1, 1).getHex()) {
+            //     console.log(child);
+            //     cnt++;
+            // }
+            // if (child.material.emissiveMap != null) {
+            //     // console.log(child);
+            //     console.log(typeof child.material);
+            //     cnt2++;
+            // }
+            // let tmp = new THREE.Matrix4(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
+            // for (let i = 0; i < child.matrix.elements.length; i++) {
+            //     if (tmp.elements[i] != child.matrixWorld.elements[i]) {
+            //         console.log(child);
+            //         break;
+            //     }
+            // }
+        }
+    });
+});
 
 
 
@@ -38,6 +60,7 @@ async function initWebGPU(canvas: HTMLCanvasElement) {
     })
     if (!adapter)
         throw new Error('No Adapter Found')
+    console.log(adapter.limits);
     const device = await adapter.requestDevice({
         requiredLimits: {
             maxStorageBufferBindingSize: adapter.limits.maxStorageBufferBindingSize
@@ -120,14 +143,19 @@ async function initPipeline(device: GPUDevice, format: GPUTextureFormat, size: {
         usage: GPUTextureUsage.RENDER_ATTACHMENT,
     })
     const depthView = depthTexture.createView()
+    const groupSize = 128;
     // create a compute pipeline
     const computePipeline = await device.createComputePipelineAsync({
         layout: 'auto',
         compute: {
             module: device.createShaderModule({
-                code: positionCompute
+                label: 'compute position shader',
+                code: shaders.get('compute.position.wgsl')
             }),
-            entryPoint: 'main'
+            entryPoint: 'main',
+            constants: {
+                size: groupSize,
+            }
         }
     })
 

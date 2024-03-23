@@ -1,10 +1,11 @@
+import { max } from "three/examples/jsm/nodes/Nodes.js";
+
 class webGPUDevice {
     canvas?: HTMLCanvasElement;
     adapter?: GPUAdapter;
     device?: GPUDevice;
     context?: GPUCanvasContext;
     format?: GPUTextureFormat;
-    size?: { width: number, height: number };
 
     async init(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
@@ -15,10 +16,14 @@ class webGPUDevice {
         })
         if (!_ad) throw new Error('No Adapter Found')
         this.adapter = _ad as GPUAdapter;
+        // console.log('limits: ', this.adapter.limits);
+        const supFeature = this.adapter.features.has('bgra8unorm-storage');
         let _de = await this.adapter.requestDevice({
             requiredLimits: {
                 maxStorageBufferBindingSize: this.adapter.limits.maxStorageBufferBindingSize,
-            }
+                maxStorageBuffersPerShaderStage: this.adapter.limits.maxStorageBuffersPerShaderStage,
+            },
+            requiredFeatures: supFeature ? ['bgra8unorm-storage'] : [],
         });
         if (!_de) throw new Error('No Device Found')
         this.device = _de as GPUDevice;
@@ -27,12 +32,14 @@ class webGPUDevice {
         if (!_context) throw new Error('No GPUContext Found')
         this.context = _context;
 
-        this.format = navigator.gpu.getPreferredCanvasFormat();
+        this.format = supFeature ? navigator.gpu.getPreferredCanvasFormat() : 'rgba8unorm';
         const devicePixelRatio = window.devicePixelRatio || 1;
         canvas.width = canvas.clientWidth * devicePixelRatio;
         canvas.height = canvas.clientHeight * devicePixelRatio;
-        this.size = { width: canvas.width, height: canvas.height };
-        this.context.configure({ device: this.device, format: this.format, alphaMode: 'opaque' });
+        this.context.configure({
+            device: this.device, format: this.format, alphaMode: 'opaque',
+            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
+        });
         return this;
     }
 }
