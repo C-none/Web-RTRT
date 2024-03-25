@@ -10,8 +10,8 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
     }
     // textureStore(output, screen_pos, textureLoad(input, screen_pos));
     let color = textureLoad(input, screen_pos);
-    if color.x <= 0.01 {
-        textureStore(output, screen_pos, vec4<f32>(0.0, 0.0, 0.0, 1.0));
+    if color.x <= 0.0001 {
+        textureStore(output, screen_pos, vec4<f32>(0.1, 0.1, 0.1, 1.0));
         return;
     }
     let degree = i32(color.x * 256. * 2.);

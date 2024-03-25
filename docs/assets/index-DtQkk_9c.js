@@ -248,7 +248,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {\r
     var color = vec4<f32>(0.0, 0.0, 0.0, 1.0);\r
     if rayInfo.isHit == 1u {\r
         let distance: f32 = rayInfo.hitDistance;\r
-        color = vec4<f32>(vec3<f32>(distance / 3000.0), 1.0);\r
+        color = vec4<f32>(vec3<f32>(distance / 4.0), 1.0);\r
     } else {\r
         color = vec4<f32>(0.0, 0.15, 0.1, 1.0);\r
     }\r
@@ -266,8 +266,8 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {\r
     }\r
     // textureStore(output, screen_pos, textureLoad(input, screen_pos));\r
     let color = textureLoad(input, screen_pos);\r
-    if color.x <= 0.01 {\r
-        textureStore(output, screen_pos, vec4<f32>(0.0, 0.0, 0.0, 1.0));\r
+    if color.x <= 0.0001 {\r
+        textureStore(output, screen_pos, vec4<f32>(0.1, 0.1, 0.1, 1.0));\r
         return;\r
     }\r
     let degree = i32(color.x * 256. * 2.);\r
