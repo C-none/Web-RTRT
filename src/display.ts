@@ -20,7 +20,6 @@ class Display {
                     binding: 0,
                     visibility: GPUShaderStage.COMPUTE,
                     storageTexture: {
-                        access: 'read-only',
                         format: currentFrameBuffer.format,
                         viewDimension: '2d',
                     },

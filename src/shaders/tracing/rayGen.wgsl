@@ -151,7 +151,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
     var color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
     if rayInfo.isHit == 1u {
         let distance: f32 = rayInfo.hitDistance;
-        color = vec4<f32>(vec3<f32>(distance / 4.0), 1.0);
+        color = vec4<f32>(vec3<f32>(distance / 3000.0), 1.0);
     } else {
         color = vec4<f32>(0.0, 0.15, 0.1, 1.0);
     }

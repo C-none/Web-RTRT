@@ -125,8 +125,8 @@ class gltfmodel {
     vertexSum: number = 0;
     triangleSum: number = 0;
     async init(path: string, device: webGPUDevice): Promise<boolean> {
-        // await this.loadModel(path);
-        this.loadTriangle();
+        await this.loadModel(path);
+        // this.loadTriangle();
         this.prepareVtxIdxArray();
         new BVHBuilder(this.bvh, new triangleData(this.vertexArray, this.indexArray), (progress: number) => { console.log("building bvh progress: ", (progress * 100).toFixed(2), "%"); });
         this.buildBVHBuffer(device);
