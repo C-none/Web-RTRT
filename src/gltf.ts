@@ -130,7 +130,7 @@ class gltfmodel {
         this.prepareVtxIdxArray();
         new BVHBuilder(this.bvh, new triangleData(this.vertexArray, this.indexArray), (progress: number) => { console.log("building bvh progress: ", (progress * 100).toFixed(2), "%"); });
         this.buildBVHBuffer(device);
-        this.textures.submit(device);
+        // this.textures.submit(device);
         this.allocateBuffer(device);
         this.writeBuffer();
         // success
@@ -172,20 +172,20 @@ class gltfmodel {
             }
 
             // find mesh without normal map and delete it.
-            model.traverse((child: THREE.Object3D) => {
-                if (child instanceof THREE.Group) {
-                    for (let i = child.children.length - 1; i >= 0; i--) {
-                        if (child.children[i] instanceof THREE.Mesh) {
-                            let mesh = child.children[i] as THREE.Mesh;
-                            let material = mesh.material as any;
-                            // todo: fix model
-                            if (!material.normalMap || !material.map) {
-                                child.children.splice(i, 1);
-                            }
-                        }
-                    }
-                }
-            });
+            // model.traverse((child: THREE.Object3D) => {
+            //     if (child instanceof THREE.Group) {
+            //         for (let i = child.children.length - 1; i >= 0; i--) {
+            //             if (child.children[i] instanceof THREE.Mesh) {
+            //                 let mesh = child.children[i] as THREE.Mesh;
+            //                 let material = mesh.material as any;
+            //                 // todo: fix model
+            //                 if (!material.normalMap || !material.map) {
+            //                     child.children.splice(i, 1);
+            //                 }
+            //             }
+            //         }
+            //     }
+            // });
 
             model.traverse((child: THREE.Object3D) => {
                 if (child instanceof THREE.Mesh) {
@@ -321,7 +321,7 @@ class gltfmodel {
         });
         this.indexBuffer = device.device.createBuffer({
             label: 'indexBuffer', size: this.indexArray.byteLength,
-            usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
             mappedAtCreation: true,
         });
         /*

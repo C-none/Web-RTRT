@@ -99,6 +99,7 @@ class node {
 class BVH {
     triangleView: Array<triangle> = [];
     nodes: Array<node> = [];
+    maxDepth: number = 0;
 }
 
 class BVHBuilder {
@@ -124,20 +125,19 @@ class BVHBuilder {
         this.build(0, 0, trianglesCnt, 1);
         // in seconds
         console.log("BVH built time: ", (new Date().getTime() - start) / 1000, "s");
-        console.log("maxDepth:", this.maxDepth);
+        console.log("maxDepth:", this.bvh.maxDepth);
     }
-    maxDepth: number = 0;
     handledNodes: number = 0;
     build(parent: number, begin: number, cnt: number, depth: number): void {
-        if (depth > this.maxDepth)
-            this.maxDepth = depth;
+        if (depth > this.bvh.maxDepth)
+            this.bvh.maxDepth = depth;
         this.handledNodes++;
         if (this.handledNodes % Math.ceil(this.bvh.nodes.length / 10) == 0)
             this.onProgress(this.handledNodes / this.bvh.nodes.length);
         if (cnt == 1) {
             this.bvh.nodes[parent].aabb = this.bvh.triangleView[begin].aabb;
             this.bvh.nodes[parent].is_leaf = true;
-            this.bvh.nodes[parent].child = begin;
+            this.bvh.nodes[parent].child = this.bvh.triangleView[begin].index;
             return;
         }
         // copy the triangleView to a temporary array

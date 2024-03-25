@@ -7,7 +7,6 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/Addons.js'
 import { GLTFLoader } from 'three/examples/jsm/Addons.js';
 import { shaders } from './shaders/manager'
-
 let loader = new GLTFLoader();
 let model: THREE.Group<THREE.Object3DEventMap>;
 // ./assets/bistro_external/external.gltf
@@ -64,7 +63,7 @@ async function initWebGPU(canvas: HTMLCanvasElement) {
     const device = await adapter.requestDevice({
         requiredLimits: {
             maxStorageBufferBindingSize: adapter.limits.maxStorageBufferBindingSize
-        }
+        },
     })
     const context = canvas.getContext('webgpu') as GPUCanvasContext
     const format = navigator.gpu.getPreferredCanvasFormat()

@@ -1,81 +1,75 @@
 import { webGPUDevice } from "./util/device";
-import DISPLAY_VERTEX from "./shaders/display/display.vert.wgsl?raw";
-import DISPLAY_FRAG from "./shaders/display/display.frag.wgsl?raw";
-
-// to be modified according to https://webgpufundamentals.org/webgpu/lessons/webgpu-storage-textures.html
+import { shaders } from "./shaders/manager";
 
 // copy from framebuffer to the screen
 class Display {
-    displayPipeline?: GPURenderPipeline;
+    displayPipeline?: GPUComputePipeline;
     displayBindGroup?: GPUBindGroup;
-    resolutionUniformBuffer?: GPUBuffer;
-    constructor(device: webGPUDevice, currentFrameBuffer: GPUTextureView) {
-        this.resolutionUniformBuffer = device.device.createBuffer({
-            size: 2 * Float32Array.BYTES_PER_ELEMENT,
-            usage: GPUBufferUsage.UNIFORM,
-            mappedAtCreation: true,
-        });
-        new Float32Array(this.resolutionUniformBuffer.getMappedRange()).set(new Float32Array([
-            device.canvas.width, device.canvas.height,
-        ]));
-        this.resolutionUniformBuffer.unmap();
+    displayPipelineLayout?: GPUPipelineLayout;
+    displayBindGroupLayout?: GPUBindGroupLayout;
 
-        const bindGroupLayouts = device.device.createBindGroupLayout({
+    device: webGPUDevice;
+    currentFrameBuffer: GPUTexture;
+
+    constructor(device: webGPUDevice, currentFrameBuffer: GPUTexture) {
+        this.device = device;
+        this.currentFrameBuffer = currentFrameBuffer;
+        this.displayBindGroupLayout = device.device.createBindGroupLayout({
             entries: [
                 {
-                    binding: 0, visibility: GPUShaderStage.FRAGMENT,
+                    binding: 0,
+                    visibility: GPUShaderStage.COMPUTE,
                     storageTexture: {
                         access: 'read-only',
-                        format: 'rgba16float',
+                        format: currentFrameBuffer.format,
+                        viewDimension: '2d',
                     },
                 },
                 {
-                    binding: 1, visibility: GPUShaderStage.FRAGMENT,
-                    buffer: { type: 'uniform' },
+                    binding: 1,
+                    visibility: GPUShaderStage.COMPUTE,
+                    storageTexture: {
+                        access: 'write-only',
+                        format: device.format,
+                    },
                 }
             ],
         });
-        const pipelineLayout = device.device.createPipelineLayout({
-            bindGroupLayouts: [bindGroupLayouts,],
+        this.displayPipelineLayout = device.device.createPipelineLayout({
+            bindGroupLayouts: [this.displayBindGroupLayout],
         });
-        this.displayBindGroup = device.device.createBindGroup({
-            layout: bindGroupLayouts,
-            entries: [
-                { binding: 0, resource: currentFrameBuffer, },
-                { binding: 1, resource: { buffer: this.resolutionUniformBuffer, }, },
-            ],
-        });
-        this.displayPipeline = device.device.createRenderPipeline({
-            layout: pipelineLayout,
-            vertex: {
-                module: device.device.createShaderModule({ code: DISPLAY_VERTEX, }),
-                entryPoint: "main",
-            },
-            fragment: {
-                module: device.device.createShaderModule({ code: DISPLAY_FRAG, }),
-                entryPoint: "main",
-                targets: [{ format: device.format, },],
-            },
-            primitive: {
-                topology: 'triangle-list', frontFace: "ccw", cullMode: "none",
+        this.displayPipeline = device.device.createComputePipeline({
+            layout: this.displayPipelineLayout,
+            compute: {
+                module: device.device.createShaderModule({
+                    label: 'display.wgsl',
+                    code: shaders.get('display.wgsl').replace('displayFormat', device.format),
+                }),
+                entryPoint: 'main',
             },
         });
-
+        // console.log(shaders.get('display.wgsl').replace('displayFormat', device.format));
     }
 
-    buildPipeline(commandEncoder: GPUCommandEncoder, screenView: GPUTextureView) {
-        const displayPass = commandEncoder.beginRenderPass({
-            colorAttachments: [{
-                clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
-                loadOp: 'clear',
-                storeOp: 'store',
-                view: screenView,
-            }]
+    record(commandEncoder: GPUCommandEncoder) {
+        const bindGroup = this.displayBindGroup = this.device.device.createBindGroup({
+            layout: this.displayBindGroupLayout,
+            entries: [
+                {
+                    binding: 0,
+                    resource: this.currentFrameBuffer.createView(),
+                },
+                {
+                    binding: 1,
+                    resource: this.device.context.getCurrentTexture().createView(),
+                }
+            ],
         });
-        displayPass.setPipeline(this.displayPipeline);
-        displayPass.setBindGroup(0, this.displayBindGroup);
-        displayPass.draw(3, 1, 0, 0);
-        displayPass.end();
+        const passEncoder = commandEncoder.beginComputePass();
+        passEncoder.setPipeline(this.displayPipeline);
+        passEncoder.setBindGroup(0, bindGroup);
+        passEncoder.dispatchWorkgroups(Math.ceil(this.device.canvas.width / 8), Math.ceil(this.device.canvas.height / 8), 1);
+        passEncoder.end();
 
     }
 }

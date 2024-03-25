@@ -2,7 +2,8 @@ import utils from './utils.wgsl?raw';
 import basic from './basic.instanced.vert.wgsl?raw';
 import position from './position.frag.wgsl?raw';
 import compute from './compute.position.wgsl?raw';
-
+import rayGen from './tracing/rayGen.wgsl?raw';
+import display from './display/display.wgsl?raw';
 
 
 const insert = (wgsl: string, snippets: any) =>
@@ -14,10 +15,17 @@ class ShaderManager {
         "basic.instanced.vert.wgsl": basic,
         "position.frag.wgsl": position,
         "compute.position.wgsl": compute,
+        "rayGen.wgsl": rayGen,
+        "display.wgsl": display,
     }
     constructor() {
         for (const name in this.shaders) {
-            this.shaders[name] = insert(this.shaders[name], this.shaders);
+            let depth = 0;
+            while (this.shaders[name].includes("#include")) {
+                this.shaders[name] = insert(this.shaders[name], this.shaders);
+                if (depth++ > 10)
+                    throw new Error("Too deep include chain in shader: " + name);
+            }
         }
     }
     get(name: keyof typeof this.shaders) {
