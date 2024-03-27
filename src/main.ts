@@ -29,6 +29,7 @@ class Application {
 
         this.display = new Display(this.device, currentFrameBuffer);
         this.model = new gltfmodel();
+        document.querySelector('span')!.textContent = "building bvh progress: 0%";
         await this.model.init("./assets/sponza/Sponza.gltf", this.device);
         this.rayTracing = new rayTracing(this.device, this.model, currentFrameBuffer);
         await this.rayTracing.init();

@@ -94,6 +94,7 @@ class node {
     aabb: AABB;
     child: number;// is_leaf? triangle's index in triangleView: left
     is_leaf: boolean = false;
+    Axis: Axis = Axis.X;
 }
 
 class BVH {
@@ -172,6 +173,7 @@ class BVHBuilder {
             const diff = cur - centroidBounds.min[i];
             return diff > acc.maxDiff ? { maxIndex: i, maxDiff: diff } : acc;
         }, { maxIndex: -1, maxDiff: -Infinity }).maxIndex as Axis;
+        this.bvh.nodes[parent].Axis = splitAxis;
         let splitResult = { minCostCnt: 0, minCost: Infinity };
         // for (let splitAxis = Axis.X; splitAxis <= Axis.Z; splitAxis++) 
         if (cnt >= 16 && centroidBounds.min[splitAxis] != centroidBounds.max[splitAxis]) {

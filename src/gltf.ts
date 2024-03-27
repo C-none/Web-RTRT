@@ -125,10 +125,13 @@ class gltfmodel {
     vertexSum: number = 0;
     triangleSum: number = 0;
     async init(path: string, device: webGPUDevice): Promise<boolean> {
-        // await this.loadModel(path);
-        this.loadTriangle();
+        await this.loadModel(path);
+        // this.loadTriangle();
         this.prepareVtxIdxArray();
-        new BVHBuilder(this.bvh, new triangleData(this.vertexArray, this.indexArray), (progress: number) => { console.log("building bvh progress: ", (progress * 100).toFixed(2), "%"); });
+        new BVHBuilder(this.bvh, new triangleData(this.vertexArray, this.indexArray), (progress: number) => {
+            // document.querySelector('span')!.textContent = "building bvh progress: " + (progress * 100).toPrecision(3) + "%";
+            console.log("building bvh progress: " + (progress * 100).toPrecision(3) + "%");
+        });
         this.buildBVHBuffer(device);
         // this.textures.submit(device);
         this.allocateBuffer(device);
@@ -305,7 +308,7 @@ class gltfmodel {
             let node = this.bvh.nodes[index];
             let offset = index * 8;
             bvhFloatArray.set(node.aabb.min, offset);
-            bvhUintArray.set(new Uint32Array([node.is_leaf ? 1 : 0]), offset + 3);
+            bvhUintArray.set(new Uint32Array([(node.is_leaf ? 1 : 0) + node.Axis * 2]), offset + 3);
             bvhFloatArray.set(node.aabb.max, offset + 4);
             bvhUintArray.set(new Uint32Array([node.child]), offset + 7);
         }

@@ -2,9 +2,11 @@ import utils from './utils.wgsl?raw';
 import basic from './basic.instanced.vert.wgsl?raw';
 import position from './position.frag.wgsl?raw';
 import compute from './compute.position.wgsl?raw';
-import rayGen from './tracing/rayGen.wgsl?raw';
-import display from './display/display.wgsl?raw';
 
+import rayGen from './tracing/rayGen.wgsl?raw';
+import slopeAABBTest from './tracing/slopeAABBTest.wgsl?raw';
+
+import display from './display/display.wgsl?raw';
 
 const insert = (wgsl: string, snippets: any) =>
     wgsl.replace(/#include\s+<(.*?)>;/g, (_, name: any): string => snippets[name]);
@@ -17,6 +19,7 @@ class ShaderManager {
         "compute.position.wgsl": compute,
         "rayGen.wgsl": rayGen,
         "display.wgsl": display,
+        "slopeAABBTest.wgsl": slopeAABBTest,
     }
     constructor() {
         for (const name in this.shaders) {
