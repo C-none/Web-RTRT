@@ -1,9 +1,8 @@
 import * as THREE from 'three'
 import { GLTFLoader, DRACOLoader, KTX2Loader } from 'three/examples/jsm/Addons.js';
 import { webGPUDevice } from './device.ts';
-import { BVH } from './bvh.ts';
 import { LogOnScreen } from './utils.ts';
-import { resolve } from 'path';
+import computeWorker from './computeWorker.ts?worker';
 
 class Geometry {
     position: Float32Array = new Float32Array();
@@ -283,7 +282,7 @@ class gltfmodel {
 
     async prepareBVH(device: webGPUDevice): Promise<void> {
         return new Promise(async (resolve, reject) => {
-            let bvhWorker = new Worker('./src/computeWorker.ts', { type: 'module' });
+            let bvhWorker = new computeWorker();
             bvhWorker.onmessage = async (e) => {
                 if (typeof e.data === 'string') {
                     LogOnScreen(e.data);
@@ -293,6 +292,7 @@ class gltfmodel {
                     this.bvhMaxDepth = e.data;
                     return;
                 }
+                LogOnScreen("bvh building finished");
                 this.bvhBuffer = device.device.createBuffer({
                     label: 'bvhBuffer', size: e.data.byteLength,
                     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
@@ -302,7 +302,7 @@ class gltfmodel {
                 let srcArrayView = new Uint8Array(e.data);
                 dstArrayView.set(srcArrayView);
                 this.bvhBuffer.unmap();
-                LogOnScreen("bvh building finished");
+
                 bvhWorker.terminate();
                 resolve();
             }
