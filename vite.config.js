@@ -6,8 +6,5 @@ export default defineConfig({
     emptyOutDir: true,
     target: "esnext",
   },
-  features: {
-    topLevelAwait: true,
-  },
   port: 5173,
 });

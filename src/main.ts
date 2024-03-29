@@ -1,9 +1,10 @@
 // import * as THREE from 'three'
 // import { OrbitControls } from 'three/examples/jsm/Addons.js'
-import { webGPUDevice } from './util/device.ts'
+import { webGPUDevice } from './device.ts'
 import { Display } from './display.ts'
 import { gltfmodel } from './gltf.ts'
 import { rayTracing } from './raytracing.ts';
+import { LogOnScreen } from './utils.ts';
 
 class Application {
     device: webGPUDevice;
@@ -29,8 +30,7 @@ class Application {
 
         this.display = new Display(this.device, currentFrameBuffer);
         this.model = new gltfmodel();
-        document.querySelector('span')!.textContent = "building bvh progress: 0%";
-        await this.model.init("./assets/sponza/Sponza.gltf", this.device);
+        await this.model.init("./assets/sponza/sponza.gltf", this.device);
         this.rayTracing = new rayTracing(this.device, this.model, currentFrameBuffer);
         await this.rayTracing.init();
         console.log("my model:", this.model);
@@ -53,8 +53,7 @@ class Application {
         this.buildCmdBuffer();
         if (this.frameCnt == 100) {
             const now = Date.now()
-            // present fps on screen fixed 2 decimal
-            document.querySelector('span')!.textContent = "fps: " + (1000 * 100 / (now - this.timeStamp)).toFixed(1)
+            LogOnScreen("fps: " + (1000 * 100 / (now - this.timeStamp)).toFixed(1));
             this.timeStamp = now
             this.frameCnt = 0;
         }

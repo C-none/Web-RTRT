@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { GLTFLoader, DRACOLoader, KTX2Loader } from 'three/examples/jsm/Addons.js';
 import { RGBELoader } from 'three/addons/loaders/RGBELoader.js';
 
 let camera: any, scene: any, renderer: any;
@@ -30,9 +30,10 @@ function init() {
             render();
 
             // model
-
-            const loader = new GLTFLoader();
-            loader.load('./assets/bistro_external/external.gltf', async function (gltf) {
+            const draco = new DRACOLoader().setDecoderPath('./three/draco/');
+            const loader = new GLTFLoader().setDRACOLoader(draco);
+            // const loader = new GLTFLoader();
+            loader.load('assets/bistro_internal/internal.gltf', async function (gltf) {
 
                 const model = gltf.scene;
 
@@ -43,9 +44,11 @@ function init() {
                             if (child.children[i] instanceof THREE.Mesh) {
                                 let mesh = child.children[i] as THREE.Mesh;
                                 let material = mesh.material as any;
-                                if (material.normalMap && material.map) {
-                                    child.children.splice(i, 1);
-                                }
+                                // if (material.ior !== undefined) {
+                                //     child.children.splice(i, 1);
+                                // } else {
+                                console.log(mesh);
+                                // }
                             }
                         }
                     }
@@ -72,8 +75,8 @@ function init() {
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.addEventListener('change', render); // use if there is no animation loop
-    controls.minDistance = 2;
-    controls.maxDistance = 10;
+    controls.minDistance = 0.5;
+    controls.maxDistance = 1000;
     controls.target.set(0, 0, - 0.2);
     controls.update();
 

@@ -1,5 +1,3 @@
-import { floor, func, min } from "three/examples/jsm/nodes/Nodes.js";
-
 class AABB {
     min: Float32Array = new Float32Array([Infinity, Infinity, Infinity]);
     max: Float32Array = new Float32Array([-Infinity, -Infinity, -Infinity]);
@@ -98,13 +96,13 @@ class node {
 }
 
 class BVH {
-    triangleView: Array<triangle> = [];
     nodes: Array<node> = [];
     maxDepth: number = 0;
 }
 
 class BVHBuilder {
     bvh: BVH;
+    triangleView: Array<triangle> = [];
     address: number = 0;
     onProgress: (progress: number) => void = (progress: number) => { };
     constructor(bvh: BVH, triangles: triangleData, onProgress?: (progress: number) => void) {
@@ -113,11 +111,11 @@ class BVHBuilder {
         this.onProgress = onProgress || this.onProgress;
         this.bvh = bvh;
         const trianglesCnt = triangles.size();
-        this.bvh.triangleView = new Array<triangle>(trianglesCnt);
+        this.triangleView = new Array<triangle>(trianglesCnt);
         for (let i = 0; i < trianglesCnt; i++) {
-            this.bvh.triangleView[i] = new triangle();
-            this.bvh.triangleView[i].index = i;
-            this.bvh.triangleView[i].aabb = new AABB(triangles.at(i), 3);
+            this.triangleView[i] = new triangle();
+            this.triangleView[i].index = i;
+            this.triangleView[i].aabb = new AABB(triangles.at(i), 3);
         }
         this.bvh.nodes = new Array<node>(2 * trianglesCnt - 1);
         for (let i = 0; i < this.bvh.nodes.length; i++)
@@ -133,16 +131,16 @@ class BVHBuilder {
         if (depth > this.bvh.maxDepth)
             this.bvh.maxDepth = depth;
         this.handledNodes++;
-        if (this.handledNodes % Math.ceil(this.bvh.nodes.length / 10) == 0)
+        if (this.handledNodes % Math.ceil(this.bvh.nodes.length / 200) == 0)
             this.onProgress(this.handledNodes / this.bvh.nodes.length);
         if (cnt == 1) {
-            this.bvh.nodes[parent].aabb = this.bvh.triangleView[begin].aabb;
+            this.bvh.nodes[parent].aabb = this.triangleView[begin].aabb;
             this.bvh.nodes[parent].is_leaf = true;
-            this.bvh.nodes[parent].child = this.bvh.triangleView[begin].index;
+            this.bvh.nodes[parent].child = this.triangleView[begin].index;
             return;
         }
         // copy the triangleView to a temporary array
-        let triangleViewTmp = this.bvh.triangleView.slice(begin, begin + cnt);
+        let triangleViewTmp = this.triangleView.slice(begin, begin + cnt);
         const bounds = new AABB();
         triangleViewTmp.forEach((v, i) => { bounds.expand(v.aabb); });
         this.bvh.nodes[parent].aabb = bounds;
@@ -212,7 +210,7 @@ class BVHBuilder {
             }
             if (minCost < splitResult.minCost) {
                 splitResult.minCost = minCost;
-                splitResult.minCostCnt = partition(this.bvh.triangleView, begin, begin + cnt, (v) => {
+                splitResult.minCostCnt = partition(this.triangleView, begin, begin + cnt, (v) => {
                     let b = Math.min(Math.floor((v.aabb.center()[splitAxis] - centroidBounds.min[splitAxis]) / (centroidBounds.max[splitAxis] - centroidBounds.min[splitAxis]) * BIN_COUNT), BIN_COUNT - 1);
                     return b <= bucketIndex;
                 }) - begin;
@@ -243,7 +241,7 @@ class BVHBuilder {
                 splitResult.minCost = minCost;
                 splitResult.minCostCnt = minCostCnt + 1;
                 for (let i = 0; i < cnt; i++)
-                    this.bvh.triangleView[begin + i] = triangleViewTmp[i];
+                    this.triangleView[begin + i] = triangleViewTmp[i];
             }
         }
         this.build(left, begin, splitResult.minCostCnt, depth + 1);

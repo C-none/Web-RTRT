@@ -1,7 +1,6 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/Addons.js'
-import { webGPUDevice } from './util/device.ts'
-import { update } from 'three/examples/jsm/libs/tween.module.js';
+import { webGPUDevice } from './device.ts'
 class CameraManager {
     camera: THREE.PerspectiveCamera;
     controls: OrbitControls;

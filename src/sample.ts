@@ -1,6 +1,5 @@
 import basicInstanced from './shaders/basic.instanced.vert.wgsl?raw'
 import positionFrag from './shaders/position.frag.wgsl?raw'
-import positionCompute from './shaders/compute.position.wgsl?raw'
 import * as box from './util/box'
 import { getModelViewMatrix } from './util/math'
 import * as THREE from 'three'

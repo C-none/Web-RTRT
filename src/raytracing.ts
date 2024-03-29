@@ -1,5 +1,5 @@
 import { gltfmodel } from "./gltf";
-import { webGPUDevice } from "./util/device";
+import { webGPUDevice } from "./device";
 import { CameraManager } from "./camera";
 import { shaders } from "./shaders/manager";
 
@@ -100,7 +100,7 @@ class rayTracing {
     private async buildPipeline(device: GPUDevice) {
         const computeShaderModule = device.createShaderModule({
             label: 'rayGen.wgsl',
-            code: shaders.get("rayGen.wgsl").replace(/TREE_DEPTH/g, this.model.bvh.maxDepth.toString() + 'u'),
+            code: shaders.get("rayGen.wgsl").replace(/TREE_DEPTH/g, this.model.bvhMaxDepth.toString() + 'u'),
         });
         // console.log(shaders.get("rayGen.wgsl").replace(/TREE_DEPTH/g, this.model.bvh.maxDepth.toString() + 'u'));
 

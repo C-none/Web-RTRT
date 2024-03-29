@@ -1,4 +1,4 @@
-import { webGPUDevice } from "./util/device";
+import { webGPUDevice } from "./device";
 import { shaders } from "./shaders/manager";
 
 // copy from framebuffer to the screen
@@ -19,10 +19,9 @@ class Display {
                 {
                     binding: 0,
                     visibility: GPUShaderStage.COMPUTE,
-                    storageTexture: {
-                        access: 'read-only',
-                        format: currentFrameBuffer.format,
+                    texture: {
                         viewDimension: '2d',
+                        sampleType: 'float',
                     },
                 },
                 {
