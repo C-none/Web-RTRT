@@ -128,7 +128,11 @@ class gltfmodel {
         let loader = new GLTFLoader().setDRACOLoader(new DRACOLoader().setDecoderPath('./three/draco/'));
 
         let gltf = await loader.loadAsync(path, (xhr) => {
-            LogOnScreen("model downloading: " + (xhr.loaded / xhr.total * 100).toPrecision(3) + "%");
+            if (xhr.loaded / xhr.total - 1 < 0.001) {
+                LogOnScreen("textures downloading...");
+            } else {
+                LogOnScreen("model downloading: " + (xhr.loaded / xhr.total * 100).toPrecision(3) + "%");
+            }
             console.log('loading: ' + (xhr.loaded / xhr.total * 100) + '%');
         }) as any;
         const model = gltf.scene;
@@ -277,6 +281,10 @@ class gltfmodel {
                     mesh.geometry.indices[i * 3 + 2] + mesh.vertexOffset]);
                 this.indexArray.set(idx, offset);
             }
+            // free memory
+            mesh.geometry.position = null;
+            mesh.geometry.indices = null;
+
         }
     }
 
@@ -314,12 +322,12 @@ class gltfmodel {
         // allocate buffer
         this.vertexBuffer = device.device.createBuffer({
             label: 'vertexBuffer', size: this.vertexArray.byteLength,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.VERTEX,
             mappedAtCreation: true,
         });
         this.indexBuffer = device.device.createBuffer({
             label: 'indexBuffer', size: this.indexArray.byteLength,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.INDEX,
             mappedAtCreation: true,
         });
         /*
@@ -346,11 +354,13 @@ class gltfmodel {
             const vertexArray = new Float32Array(this.vertexBuffer.getMappedRange());
             vertexArray.set(this.vertexArray);
             this.vertexBuffer.unmap();
+            this.vertexArray = null;
         }
         {// upload index buffer
             const indexArray = new Uint32Array(this.indexBuffer.getMappedRange());
             indexArray.set(this.indexArray);
             this.indexBuffer.unmap();
+            this.indexArray = null;
         }
         {// upload geometry buffer'
             const arrayBuffer = this.geometryBuffer.getMappedRange();
@@ -365,6 +375,9 @@ class gltfmodel {
                     geometryArray.set(mesh.geometry.uv.slice(i * 2, i * 2 + 2), offset + 7);
                     geometryArray.set(mesh.geometry.tangent.slice(i * 4, i * 4 + 4), offset + 9);
                 }
+                mesh.geometry.normal = null;
+                mesh.geometry.uv = null;
+                mesh.geometry.tangent = null;
             }
             this.geometryBuffer.unmap();
         }

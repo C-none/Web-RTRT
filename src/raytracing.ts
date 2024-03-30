@@ -7,17 +7,27 @@ class rayTracing {
     device: webGPUDevice;
     model: gltfmodel;
     camera: CameraManager;
+
     outputTexture: GPUTexture;
 
     bindGroupLayout: GPUBindGroupLayout;
     bindingGroup: GPUBindGroup;
     pipeline: GPUComputePipeline;
 
-    constructor(device: webGPUDevice, model: gltfmodel, outputTexture: GPUTexture) {
+    constructor(device: webGPUDevice, model: gltfmodel, cameraManager: CameraManager, outputTexture: GPUTexture) {
         this.device = device;
         this.model = model;
-        this.camera = new CameraManager(device);
+        this.camera = cameraManager;
         this.outputTexture = outputTexture;
+        this.outputTexture = this.device.device.createTexture({
+            size: {
+                width: this.device.canvas.width,
+                height: this.device.canvas.height,
+                depthOrArrayLayers: 1,
+            },
+            format: 'rgba16float', dimension: '2d',
+            usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+        });
     }
 
     private buildBindGroupLayout(device: GPUDevice) {
@@ -102,7 +112,6 @@ class rayTracing {
             label: 'rayGen.wgsl',
             code: shaders.get("rayGen.wgsl").replace(/TREE_DEPTH/g, this.model.bvhMaxDepth.toString() + 'u'),
         });
-        // console.log(shaders.get("rayGen.wgsl").replace(/TREE_DEPTH/g, this.model.bvh.maxDepth.toString() + 'u'));
 
         this.pipeline = await device.createComputePipelineAsync({
             layout: device.createPipelineLayout({
@@ -120,9 +129,6 @@ class rayTracing {
         await this.buildPipeline(this.device.device);
     }
     async record(commandEncoder: GPUCommandEncoder) {
-        // update camera buffer
-        this.camera.update();
-
         const passEncoder = commandEncoder.beginComputePass();
         passEncoder.setPipeline(this.pipeline);
         passEncoder.setBindGroup(0, this.bindingGroup);

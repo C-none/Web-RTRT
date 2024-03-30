@@ -1,50 +1,41 @@
-// import * as THREE from 'three'
-// import { OrbitControls } from 'three/examples/jsm/Addons.js'
-import { webGPUDevice } from './device.ts'
-import { Display } from './display.ts'
-import { gltfmodel } from './gltf.ts'
-import { rayTracing } from './raytracing.ts';
-import { LogOnScreen } from './utils.ts';
+import { webGPUDevice } from './device';
+import { Display } from './display';
+import { gltfmodel } from './gltf';
+import { CameraManager } from './camera';
+import { rayTracing } from './raytracing';
+import { LogOnScreen } from './utils';
 
 class Application {
     device: webGPUDevice;
+    gBufferTextures: GPUTexture;
     currentFrameBuffer: GPUTexture;
-    cmdBuffer: GPUCommandBuffer;
     display: Display;
     rayTracing: rayTracing;
     model: gltfmodel;
-
+    camera: CameraManager;
     async init() {
         this.device = new webGPUDevice();
         await this.device.init(await document.querySelector('canvas') as HTMLCanvasElement);
+        this.camera = new CameraManager(this.device);
 
-        const currentFrameBuffer = this.device.device.createTexture({
-            size: {
-                width: this.device.canvas.width,
-                height: this.device.canvas.height,
-                depthOrArrayLayers: 1,
-            },
-            format: 'rgba16float', dimension: '2d',
-            usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
-        });
-
-        this.display = new Display(this.device, currentFrameBuffer);
+        this.display = new Display(this.device, this.currentFrameBuffer);
         this.model = new gltfmodel();
         await this.model.init("./assets/sponza/sponza.gltf", this.device);
-        this.rayTracing = new rayTracing(this.device, this.model, currentFrameBuffer);
+        this.rayTracing = new rayTracing(this.device, this.model, this.camera, this.currentFrameBuffer);
         await this.rayTracing.init();
         console.log("my model:", this.model);
     }
 
     buildCmdBuffer() {
+        this.camera.update();
+
         const commandEncoder = this.device.device.createCommandEncoder();
 
         this.rayTracing.record(commandEncoder);
-
         this.display.record(commandEncoder);
 
-        this.cmdBuffer = commandEncoder.finish();
-        this.device.device.queue.submit([this.cmdBuffer]);
+        let cmdBuffer = commandEncoder.finish();
+        this.device.device.queue.submit([cmdBuffer]);
     }
 
     timeStamp = Date.now();
