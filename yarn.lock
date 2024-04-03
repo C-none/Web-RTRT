@@ -457,6 +457,11 @@ vite@^5.2.3:
   optionalDependencies:
     fsevents "~2.3.3"
 
+webgpu-utils@^1.7.0:
+  version "1.7.0"
+  resolved "https://registry.npmjs.org/webgpu-utils/-/webgpu-utils-1.7.0.tgz#70930e7230e89f6a14f0ff572c1b62376f713cd9"
+  integrity sha512-/btUb2bWDkX3JnK8fiEImiuyzzv1KiIqFCw9uGq6BwoPZLc33pEOL5JFIqP/qSSoPLFv3lc0Q4pO0Tgc0nvgAw==
+
 webgpu@^0.1.16:
   version "0.1.16"
   resolved "https://registry.npmjs.org/webgpu/-/webgpu-0.1.16.tgz#dec416373e308181b28864b58c8a914461d7ceee"

@@ -20,6 +20,7 @@ class webGPUDevice {
             requiredLimits: {
                 maxStorageBufferBindingSize: this.adapter.limits.maxStorageBufferBindingSize,
                 maxStorageBuffersPerShaderStage: this.adapter.limits.maxStorageBuffersPerShaderStage,
+
             },
             requiredFeatures: supFeature ? ['bgra8unorm-storage'] : [],
         });

@@ -1,7 +1,8 @@
 import * as THREE from 'three'
 import { GLTFLoader, DRACOLoader, KTX2Loader } from 'three/examples/jsm/Addons.js';
-import { webGPUDevice } from './device.ts';
-import { LogOnScreen } from './utils.ts';
+import { webGPUDevice } from './device';
+import { LogOnScreen } from './utils';
+// import * as GPUUtils from 'webgpu-utils';
 import computeWorker from './computeWorker.ts?worker';
 
 class Geometry {
@@ -21,12 +22,11 @@ class Geometry {
 
 class Mesh {
     geometry: Geometry;
-    // left 16bit: HR texture; right 16bit: LR texture(<=64*64)
+    boundingSphere: THREE.Sphere = new THREE.Sphere();
     TextureId: Uint32Array = new Uint32Array([
         0xffffffff,// baseColor
         0xffffffff,// normal
         0xffffffff,// specularRoughness
-        0xffffffff,// emissive
     ]);
     vertexOffset: number = 0;
     primitiveOffset: number = 0;
@@ -36,6 +36,8 @@ class Mesh {
         if (mesh.geometry.attributes.tangent === undefined) {
             mesh.geometry.computeTangents();
         }
+        mesh.geometry.computeBoundingSphere();
+        this.boundingSphere = mesh.geometry.boundingSphere;
         this.vertexCount = mesh.geometry.attributes.position.count as number;
         this.primitiveCount = mesh.geometry.index.count / 3 as number;
         this.geometry = new Geometry(mesh.geometry);
@@ -47,8 +49,9 @@ class textureManager {
     textureMap: Map<string, number> = new Map();
     Storages: Array<THREE.Texture> = [];
     texture: GPUTexture;
-    textureView: GPUTextureView;
-    Resolution: number = 64;
+    Resolution: number = 4;
+
+    static rszCtx: CanvasRenderingContext2D;
 
     add(texture: any): number {
         let retIndex = 0xffffffff;
@@ -63,26 +66,29 @@ class textureManager {
         }
         return retIndex;
     }
-    async submit(device: webGPUDevice): Promise<void> {
+    async submit(device: webGPUDevice, textureFormat: GPUTextureFormat = 'rgba8unorm'): Promise<void> {
         // resize to the same resolution
         this.Resolution = Math.pow(2, Math.ceil(Math.log2(this.Resolution)));
-        let rszCanvas = document.createElement('canvas');
-        rszCanvas.width = this.Resolution;
-        rszCanvas.height = this.Resolution;
-        let rszCtx = rszCanvas.getContext('2d');
+        if (!textureManager.rszCtx) {
+            let rszCanvas = document.createElement('canvas');
+            rszCanvas.width = this.Resolution;
+            rszCanvas.height = this.Resolution;
+            textureManager.rszCtx = rszCanvas.getContext('2d');
+        }
         for (let tex of this.Storages) {
             if (tex.source.data.width === this.Resolution && tex.source.data.height === this.Resolution) continue;
-            rszCtx.drawImage(tex.source.data, 0, 0, this.Resolution, this.Resolution);
-            tex.source.data = await createImageBitmap(rszCtx.getImageData(0, 0, this.Resolution, this.Resolution));
+            textureManager.rszCtx.drawImage(tex.source.data, 0, 0, this.Resolution, this.Resolution);
+            tex.source.data = await createImageBitmap(textureManager.rszCtx.getImageData(0, 0, this.Resolution, this.Resolution));
         }
 
         // create texture
         let textureUsage = GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT;
         this.texture = device.device.createTexture({
-            label: 'Textures', format: 'rgba8unorm', usage: textureUsage,
+            label: 'Textures', format: textureFormat, usage: textureUsage,
+            // mipLevelCount: GPUUtils.numMipLevels([this.Resolution, this.Resolution]),
             size: {
                 width: this.Resolution, height: this.Resolution,
-                depthOrArrayLayers: this.textureMap.size
+                depthOrArrayLayers: Math.max(this.textureMap.size, 1),
             },
         });
 
@@ -93,14 +99,16 @@ class textureManager {
                 { width: tex.source.data.width, height: tex.source.data.height, depthOrArrayLayers: 1, }
             );
         }
-
+        // GPUUtils.generateMipmap(device.device, this.texture);
     }
 }
 
 
 class gltfmodel {
     meshes: Array<Mesh> = [];
-    textures: textureManager = new textureManager();
+    albedo: textureManager = new textureManager();
+    normalMap: textureManager = new textureManager();
+    specularRoughnessMap: textureManager = new textureManager();
     vertexArray: Float32Array;
     indexArray: Uint32Array;
     bvhMaxDepth: number = 0;
@@ -116,7 +124,9 @@ class gltfmodel {
         // this.loadTriangle();
         this.prepareVtxIdxArray();
         let finished1 = this.prepareBVH(device);
-        this.textures.submit(device);
+        this.albedo.submit(device, 'rgba8unorm-srgb');
+        this.normalMap.submit(device);
+        this.specularRoughnessMap.submit(device);
         this.allocateBuffer(device);
         this.writeBuffer();
         return new Promise(async (resolve, reject) => {
@@ -138,46 +148,20 @@ class gltfmodel {
         const model = gltf.scene;
         // console.log(model);
 
-        function generateTex(material: any) {
-            let map = material.map as THREE.Texture;
-            let normalMap = material.normalMap as THREE.Texture;
-            let specularRoughnessMap: THREE.Texture;
-            let emissiveMap: THREE.Texture;
-
-            let retarray = [];
-            retarray.push(map);
-            retarray.push(normalMap);
-
-            if (material.specularIntensityMap !== undefined)// bistro
-                specularRoughnessMap = material.specularIntensityMap as THREE.Texture;
-            else// sponza
-                specularRoughnessMap = material.metalnessMap as THREE.Texture;
-            retarray.push(specularRoughnessMap);
-
-            if (material.emissiveMap !== undefined)// bistro
-                emissiveMap = material.emissiveMap as THREE.Texture;
-            else// sponza
-                emissiveMap = undefined;
-            if (emissiveMap) retarray.push(emissiveMap);
-
-            return retarray;
-        }
-
         // find mesh without normal map and delete it.
-        // model.traverse((child: THREE.Object3D) => {
-        //     if (child instanceof THREE.Group) {
-        //         for (let i = child.children.length - 1; i >= 0; i--) {
-        //             if (child.children[i] instanceof THREE.Mesh) {
-        //                 let mesh = child.children[i] as THREE.Mesh;
-        //                 let material = mesh.material as any;
-        //                 // todo: fix model
-        //                 if (!material.normalMap || !material.map) {
-        //                     child.children.splice(i, 1);
-        //                 }
-        //             }
-        //         }
-        //     }
-        // });
+        model.traverse((child: THREE.Object3D) => {
+            if (child instanceof THREE.Group) {
+                for (let i = child.children.length - 1; i >= 0; i--) {
+                    if (child.children[i] instanceof THREE.Mesh) {
+                        let mesh = child.children[i] as THREE.Mesh;
+                        let material = mesh.material as any;
+                        if (!material.map) {
+                            child.children.splice(i, 1);
+                        }
+                    }
+                }
+            }
+        });
 
         model.traverse((child: THREE.Object3D) => {
             if (child instanceof THREE.Mesh) {
@@ -187,17 +171,12 @@ class gltfmodel {
                 this.vertexSum += mesh.vertexCount;
                 this.triangleSum += mesh.primitiveCount;
 
-                let textures = generateTex(child.material);
-                // console.log(child.material);
-                for (let i = 0; i < textures.length; i++) {
-                    let tex = textures[i];
-                    let index = this.textures.add(tex);
-                    mesh.TextureId[i] = index;
-                }
+                mesh.TextureId[0] = this.albedo.add(child.material.map);
+                mesh.TextureId[1] = this.normalMap.add(child.material.normalMap);
+                mesh.TextureId[2] = this.specularRoughnessMap.add(child.material.metalnessMap);
                 this.meshes.push(mesh);
             }
         });
-
     }
 
     loadTriangle(): void {
@@ -263,7 +242,7 @@ class gltfmodel {
 
     prepareVtxIdxArray(): void {
         this.vertexArray = new Float32Array(this.vertexSum * 4).fill(1);
-        this.indexArray = new Uint32Array(this.triangleSum * 4).fill(0);
+        this.indexArray = new Uint32Array(this.triangleSum * 3).fill(0);
 
         for (let index = 0; index < this.meshes.length; index++) {
             let mesh = this.meshes[index];
@@ -273,7 +252,7 @@ class gltfmodel {
                 this.vertexArray.set(mesh.geometry.position.slice(i * 3, i * 3 + 3), offset);
             }
             for (let i = 0; i < mesh.primitiveCount; i++) {
-                const offset = (i + mesh.primitiveOffset) * 4;
+                const offset = (i + mesh.primitiveOffset) * 3;
                 // idx: Uint32Array([a,b,c,0])
                 const idx = new Uint32Array([
                     mesh.geometry.indices[i * 3] + mesh.vertexOffset,
@@ -333,17 +312,17 @@ class gltfmodel {
         /*
         struct{
             textureId: vec4u,
-            node: array<f32,9>, // 3 normal, 2 uv, 4 tangent
+            node: array<f32,12>, // 3 normal, 2 uv, 4 tangent
         }
         offset
         0:  u32     u32     u32     u32
-        4: norm.x  norm.y  norm.z  uv.u
-        8: uv.v    tang.x  tang.y  tang.z
-        12: tang.w  pad0    pad0    pad0
+        4: norm.x  norm.y  norm.z  pad0
+        8: tang.x  tang.y  tang.z  tang.w
+        12: uv.u   uv.v    pad0    pad0
         */
         this.geometryBuffer = device.device.createBuffer({
             label: 'geometryBuffer', size: this.vertexSum * 16 * Float32Array.BYTES_PER_ELEMENT,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.VERTEX,
             mappedAtCreation: true,
         });
     }
@@ -372,12 +351,13 @@ class gltfmodel {
                     let offset = (i + mesh.vertexOffset) * 16;
                     textureIDArray.set(mesh.TextureId, offset);
                     geometryArray.set(mesh.geometry.normal.slice(i * 3, i * 3 + 3), offset + 4);
-                    geometryArray.set(mesh.geometry.uv.slice(i * 2, i * 2 + 2), offset + 7);
-                    geometryArray.set(mesh.geometry.tangent.slice(i * 4, i * 4 + 4), offset + 9);
+                    geometryArray.set(mesh.geometry.tangent.slice(i * 4, i * 4 + 4), offset + 8);
+                    geometryArray.set(mesh.geometry.uv.slice(i * 2, i * 2 + 2), offset + 12);
                 }
                 mesh.geometry.normal = null;
                 mesh.geometry.uv = null;
                 mesh.geometry.tangent = null;
+                mesh.geometry = null;
             }
             this.geometryBuffer.unmap();
         }

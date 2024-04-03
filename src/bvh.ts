@@ -65,12 +65,12 @@ class triangleData {
         this.indexArray = indexArray;
     }
     size(): number {
-        return this.indexArray.length / 4;
+        return this.indexArray.length / 3;
     }
     at(index: number): Float32Array {
         let ret = new Float32Array(9);
         for (let i = 0; i < 3; i++) {
-            const bias = this.indexArray[index * 4 + i], offset = i * 3;
+            const bias = this.indexArray[index * 3 + i], offset = i * 3;
             ret.set(this.vertexArray.slice(bias * 4, bias * 4 + 3), offset);
         }
         return ret;

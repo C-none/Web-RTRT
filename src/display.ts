@@ -1,4 +1,5 @@
 import { webGPUDevice } from "./device";
+import { BufferPool } from "./screenBuffer";
 import { shaders } from "./shaders/manager";
 
 // copy from framebuffer to the screen
@@ -11,9 +12,9 @@ class Display {
     device: webGPUDevice;
     currentFrameBuffer: GPUTexture;
 
-    constructor(device: webGPUDevice, currentFrameBuffer: GPUTexture) {
+    constructor(device: webGPUDevice, buffers: BufferPool) {
         this.device = device;
-        this.currentFrameBuffer = currentFrameBuffer;
+        this.currentFrameBuffer = buffers.vBuffer;
         this.displayBindGroupLayout = device.device.createBindGroupLayout({
             entries: [
                 {
@@ -21,7 +22,7 @@ class Display {
                     visibility: GPUShaderStage.COMPUTE,
                     texture: {
                         viewDimension: '2d',
-                        sampleType: 'float',
+                        sampleType: 'uint',
                     },
                 },
                 {
@@ -31,7 +32,7 @@ class Display {
                         access: 'write-only',
                         format: device.format,
                     },
-                }
+                },
             ],
         });
         this.displayPipelineLayout = device.device.createPipelineLayout({
@@ -61,7 +62,7 @@ class Display {
                 {
                     binding: 1,
                     resource: this.device.context.getCurrentTexture().createView(),
-                }
+                },
             ],
         });
         const passEncoder = commandEncoder.beginComputePass();

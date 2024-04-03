@@ -1,25 +1,28 @@
-import utils from './utils.wgsl?raw';
 import basic from './basic.instanced.vert.wgsl?raw';
 import position from './position.frag.wgsl?raw';
 import compute from './compute.position.wgsl?raw';
 
-import rayGen from './tracing/rayGen.wgsl?raw';
-// import slopeAABBTest from './tracing/slopeAABBTest.wgsl?raw';
+import vBuffer from './vBuffer.wgsl?raw';
 
-import display from './display/display.wgsl?raw';
+import trace from './tracing/trace.wgsl?raw';
+import rayGen from './tracing/rayGen.wgsl?raw';
+import slopeAABBTest from './tracing/slopeAABBTest.wgsl?raw';
+
+import display from './display.wgsl?raw';
 
 const insert = (wgsl: string, snippets: any) =>
-    wgsl.replace(/#include\s+<(.*?)>;/g, (_, name: any): string => snippets[name]);
+    wgsl.replace(/\/\/ #include\s+<(.*?)>;/g, (_, name: any): string => snippets[name]);
 
 class ShaderManager {
     shaders: { [key: string]: string } = {
-        "utils.wgsl": utils,
         "basic.instanced.vert.wgsl": basic,
         "position.frag.wgsl": position,
         "compute.position.wgsl": compute,
+        "trace.wgsl": trace,
+        "vBuffer.wgsl": vBuffer,
         "rayGen.wgsl": rayGen,
         "display.wgsl": display,
-        // "slopeAABBTest.wgsl": slopeAABBTest,
+        "slopeAABBTest.wgsl": slopeAABBTest,
     }
     constructor() {
         for (const name in this.shaders) {

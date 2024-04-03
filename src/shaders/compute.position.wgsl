@@ -6,17 +6,13 @@
 
 override size = 1;
 
-#include <utils.wgsl>;
-
 @compute @workgroup_size(size)
 fn main(
     @builtin(global_invocation_id) GlobalInvocationID: vec3<u32>
 ) {
     var index = GlobalInvocationID.x;
 
-    var result = false;
-    check(index, u32(input[0]), &result);
-    if result == false {
+    if index >= u32(input[0]) {
         return;
     }
 

@@ -1,4 +1,4 @@
-import { triangleData, BVH, BVHBuilder } from './bvh.ts';
+import { triangleData, BVH, BVHBuilder } from './bvh';
 
 
 let bvh = new BVH();

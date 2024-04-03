@@ -20,6 +20,7 @@
     "gl-matrix": "^3.4.3",
     "three": "^0.162.0",
     "vite-plugin-top-level-await": "^1.4.1",
-    "webgpu": "^0.1.16"
+    "webgpu": "^0.1.16",
+    "webgpu-utils": "^1.7.0"
   }
 }

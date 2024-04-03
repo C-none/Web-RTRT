@@ -1,6 +1,7 @@
 import { gltfmodel } from "./gltf";
 import { webGPUDevice } from "./device";
 import { CameraManager } from "./camera";
+import { BufferPool } from "./screenBuffer";
 import { shaders } from "./shaders/manager";
 
 class rayTracing {
@@ -8,30 +9,23 @@ class rayTracing {
     model: gltfmodel;
     camera: CameraManager;
 
+    vBuffer: GPUTexture;
     outputTexture: GPUTexture;
 
     bindGroupLayout: GPUBindGroupLayout;
     bindingGroup: GPUBindGroup;
     pipeline: GPUComputePipeline;
 
-    constructor(device: webGPUDevice, model: gltfmodel, cameraManager: CameraManager, outputTexture: GPUTexture) {
+    constructor(device: webGPUDevice, model: gltfmodel, cameraManager: CameraManager, buffers: BufferPool) {
         this.device = device;
         this.model = model;
         this.camera = cameraManager;
-        this.outputTexture = outputTexture;
-        this.outputTexture = this.device.device.createTexture({
-            size: {
-                width: this.device.canvas.width,
-                height: this.device.canvas.height,
-                depthOrArrayLayers: 1,
-            },
-            format: 'rgba16float', dimension: '2d',
-            usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
-        });
+        this.vBuffer = buffers.vBuffer;
+        this.outputTexture = buffers.currentFrameBuffer;
     }
 
-    private buildBindGroupLayout(device: GPUDevice) {
-        this.bindGroupLayout = device.createBindGroupLayout({
+    private buildBindGroupLayout() {
+        this.bindGroupLayout = this.device.device.createBindGroupLayout({
             entries: [
                 {// output texture
                     binding: 0,
@@ -69,11 +63,19 @@ class rayTracing {
                         type: 'read-only-storage',
                     },
                 },
+                {// visibility buffer
+                    binding: 5,
+                    visibility: GPUShaderStage.COMPUTE,
+                    texture: {
+                        sampleType: 'uint',
+                        viewDimension: "2d",
+                    },
+                }
             ]
         });
     }
-    private buildBindGroup(device: GPUDevice) {
-        this.bindingGroup = device.createBindGroup({
+    private buildBindGroup() {
+        this.bindingGroup = this.device.device.createBindGroup({
             layout: this.bindGroupLayout,
             entries: [
                 {// output texture
@@ -104,17 +106,21 @@ class rayTracing {
                         buffer: this.model.indexBuffer,
                     },
                 },
+                {// visibility buffer
+                    binding: 5,
+                    resource: this.vBuffer.createView(),
+                }
             ]
         });
     }
-    private async buildPipeline(device: GPUDevice) {
-        const computeShaderModule = device.createShaderModule({
+    private async buildPipeline() {
+        const computeShaderModule = this.device.device.createShaderModule({
             label: 'rayGen.wgsl',
             code: shaders.get("rayGen.wgsl").replace(/TREE_DEPTH/g, this.model.bvhMaxDepth.toString() + 'u'),
         });
 
-        this.pipeline = await device.createComputePipelineAsync({
-            layout: device.createPipelineLayout({
+        this.pipeline = await this.device.device.createComputePipelineAsync({
+            layout: this.device.device.createPipelineLayout({
                 bindGroupLayouts: [this.bindGroupLayout],
             }),
             compute: {
@@ -124,9 +130,9 @@ class rayTracing {
         });
     }
     async init() {
-        this.buildBindGroupLayout(this.device.device);
-        this.buildBindGroup(this.device.device);
-        await this.buildPipeline(this.device.device);
+        this.buildBindGroupLayout();
+        this.buildBindGroup();
+        await this.buildPipeline();
     }
     async record(commandEncoder: GPUCommandEncoder) {
         const passEncoder = commandEncoder.beginComputePass();
