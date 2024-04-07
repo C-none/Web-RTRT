@@ -31,7 +31,7 @@ class Application {
         this.rayTracing = new rayTracing(this.device, this.model, this.camera, this.buffers);
         await this.rayTracing.init();
 
-        this.display = new Display(this.device, this.buffers);
+        this.display = new Display(this.device, this.buffers, this.camera);
 
         console.log("my model:", this.model);
     }

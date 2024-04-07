@@ -1,5 +1,6 @@
 import { webGPUDevice } from "./device";
 import { BufferPool } from "./screenBuffer";
+import { CameraManager } from "./camera";
 import { shaders } from "./shaders/manager";
 
 // copy from framebuffer to the screen
@@ -16,7 +17,7 @@ class Display {
     previousFrameBuffer: GPUTexture;
     sampler: GPUSampler;
 
-    constructor(device: webGPUDevice, buffers: BufferPool) {
+    constructor(device: webGPUDevice, buffers: BufferPool, camera: CameraManager) {
         this.device = device;
         this.vBuffer = buffers.vBuffer;
         this.depthTexture = buffers.depthTexture;
@@ -77,6 +78,10 @@ class Display {
                     code: shaders.get('display.wgsl').replace('displayFormat', device.format),
                 }),
                 entryPoint: 'main',
+                constants: {
+                    zNear: camera.camera.near,
+                    zFar: camera.camera.far,
+                }
             },
         });
         // console.log(shaders.get('display.wgsl').replace('displayFormat', device.format));

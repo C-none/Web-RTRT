@@ -5,6 +5,8 @@
 @group(0) @binding(4) var currentFrame : texture_2d<f32>;
 @group(0) @binding(5) var previousFrame : texture_2d<f32>;
 
+override zNear: f32 = 0.01;
+override zFar: f32 = 50.0;
 
 @compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
@@ -18,11 +20,11 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
     let origin_pos: vec2<u32> = vec2<u32>(vec2<f32>(screen_pos) / scale_ratio);
 
     // linear depth
-    const zNear: f32 = 0.01;
-    const zFar: f32 = 50.0;
-    let depth = (textureSampleLevel(depthBuffer, samp, vec2<f32>(origin_pos), 0) + 1.0) / 2.0;
+    let depth = (textureSampleLevel(depthBuffer, samp, vec2<f32>(origin_pos) / vec2<f32>(origin_size), 0) + 1.0) / 2.0;
+    // let depth = (textureLoad(depthBuffer, origin_pos, 0) + 1.0) / 2.0;
     let zlinear = zNear * zFar / (zFar + depth * (zNear - zFar));
-    // textureStore(output, screen_pos, vec4<f32>(vec3<f32>(zlinear / 3000.0), 1.0));
+    // textureStore(output, screen_pos, vec4<f32>(vec3<f32>(zlinear / 20.0), 1.0));
+
     // vbuffer 
     var visibility: vec4<u32> = textureLoad(vBuffer, origin_pos, 0);
     let betagamma = unpack2x16float(visibility.x);
@@ -35,19 +37,18 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
     // v
     // Y
     let motionVec = unpack2x16float(visibility.y);
-    // textureStore(output, screen_pos, vec4<f32>(motionVec.xy * 0.05, 0.0, 1.0));
+    // textureStore(output, screen_pos, vec4<f32>(motionVec.xy * 0.05+0.5, 0.0, 1.0));
     let trianlgeID = visibility.z;
     // textureStore(output, screen_pos, vec4<f32>(vec3<f32>(f32(visibility.z) / 3.), 1.));
     let albedo = unpack4x8unorm(visibility.w);
     // textureStore(output, screen_pos, vec4<f32>(albedo.rgb, 1.0));
-    // textureStore(output, screen_pos, vec4<f32>(f32(visibility.w) / 10., 0., 0., 1.0));
 
     // raytracing depth
     var color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
     if screen_pos.x < screen_size.x / 2 {
         color = textureLoad(currentFrame, origin_pos, 0);
     } else {
-        color = textureLoad(previousFrame, origin_pos, 0);
+        color = textureSampleLevel(previousFrame, samp, vec2<f32>(origin_pos) / vec2<f32>(origin_size), 0);
     }
     textureStore(output, screen_pos, color);
 }
