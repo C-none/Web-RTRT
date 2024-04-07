@@ -53,12 +53,14 @@ class CameraManager {
 
     constructor(device: webGPUDevice) {
         this.device = device;
-        this.camera = new THREE.PerspectiveCamera(60, this.device.canvas.width / this.device.canvas.height, 0.1, 5000);
+        this.camera = new THREE.PerspectiveCamera(60, this.device.canvas.width / this.device.canvas.height, 0.01, 50);
         this.controls = new OrbitControls(this.camera, this.device.canvas);
         // this.controls.enableDamping = true;
         // this.controls.dampingFactor = 0.02
-        this.controls.target.set(0, 500, 0);
-        this.camera.position.set(500, 500, 2);
+        this.controls.target.set(0, 5, 0);
+        this.camera.position.set(5, 5, 0);
+        // this.controls.target.set(0, 0, 0);
+        // this.camera.position.set(0, 0, 2);
         this.controls.update();
         this.Frustum = new Frustum();
         this.cameraBuffer = this.device.device.createBuffer({

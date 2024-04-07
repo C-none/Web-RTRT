@@ -22,15 +22,14 @@ struct InterStage {
     @location(2) @interpolate(flat) textureId: u32,
     @location(3) @interpolate(flat) primId: u32,
     @location(4) lastPos: vec4<f32>,
-    @location(5) currentPos: vec4<f32>,
 };
 
 @vertex
 fn vs(
     @builtin(vertex_index) index: u32,
     @location(0) pos: vec4<f32>,
-    @location(1) textureId: vec4<u32>,
-    @location(2) uv: vec2<f32>,
+    @location(1) uv: vec2<f32>,
+    @location(2) textureId: u32,
 ) -> InterStage {
     let BaryCoords: array<vec4<f32>,3> = array<vec4<f32>,3>(
         vec4<f32>(1.0, 0.0, 0.0, 1.0),
@@ -43,10 +42,9 @@ fn vs(
         vtxpos,
         BaryCoords[index % 3],
         uv,
-        textureId[0],
+        textureId,
         index / 3,
         lastvtxpos,
-        vtxpos,
     );
 }
 
@@ -62,8 +60,8 @@ fn fs(
     _ = width;
     var color = vec4<f32>(1.0);
     var sampleId = stage.textureId;
-    color = textureSampleLevel(albedo, sample, stage.uv, sampleId, 0.0);
-    // color = textureSampleGrad(albedo, sample, stage.uv, i, dpdx(stage.uv), dpdy(stage.uv));
+    // color = textureSampleLevel(albedo, sample, stage.uv, sampleId, 0.0);
+    color = textureSample(albedo, sample, stage.uv, sampleId); // mipmap
     if color.a < 0.5 {
             discard;
     }
@@ -71,8 +69,6 @@ fn fs(
     let lastScreenPos = vec2<f32>(stage.lastPos.x / stage.lastPos.w, - stage.lastPos.y / stage.lastPos.w) / 2.0 + 0.5;
     let currentScreenPos = vec2<f32>(stage.pos.x / width, stage.pos.y / height);
     let motionVec = currentScreenPos - lastScreenPos;
-    // color = vec4<f32>(stage.pos.x / width, stage.pos.y / height, 0.0, 1.0);
-    // color = vec4<f32>((currentScreenPos - lastScreenPos) * 25.0 + 0.5, 0.0, 1.0);
     var visibility = Visibility(
         stage.BaryCoord.yz,
         vec2<f32>(motionVec.x * width, motionVec.y * height), // motionVec

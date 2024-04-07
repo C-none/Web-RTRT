@@ -11,6 +11,7 @@ class rayTracing {
 
     vBuffer: GPUTexture;
     outputTexture: GPUTexture;
+    sampler: GPUSampler;
 
     bindGroupLayout: GPUBindGroupLayout;
     bindingGroup: GPUBindGroup;
@@ -22,6 +23,12 @@ class rayTracing {
         this.camera = cameraManager;
         this.vBuffer = buffers.vBuffer;
         this.outputTexture = buffers.currentFrameBuffer;
+        this.sampler = this.device.device.createSampler({
+            addressModeU: "mirror-repeat",
+            addressModeV: "mirror-repeat",
+            magFilter: "linear",
+            minFilter: "linear",
+        });
     }
 
     private buildBindGroupLayout() {
@@ -30,46 +37,57 @@ class rayTracing {
                 {// output texture
                     binding: 0,
                     visibility: GPUShaderStage.COMPUTE,
-                    storageTexture: {
-                        access: 'write-only',
-                        format: this.outputTexture.format,
-                    },
+                    storageTexture: { access: 'write-only', format: this.outputTexture.format, },
                 },
                 {// camera buffer
                     binding: 1,
                     visibility: GPUShaderStage.COMPUTE,
-                    buffer: {
-                        type: 'uniform',
-                    },
+                    buffer: { type: 'uniform', },
                 },
                 {// BVH buffer
                     binding: 2,
                     visibility: GPUShaderStage.COMPUTE,
-                    buffer: {
-                        type: 'read-only-storage',
-                    },
+                    buffer: { type: 'read-only-storage', },
                 },
                 {// vertex buffer
                     binding: 3,
                     visibility: GPUShaderStage.COMPUTE,
-                    buffer: {
-                        type: 'read-only-storage',
-                    },
+                    buffer: { type: 'read-only-storage', },
                 },
                 {// index buffer
                     binding: 4,
                     visibility: GPUShaderStage.COMPUTE,
-                    buffer: {
-                        type: 'read-only-storage',
-                    },
+                    buffer: { type: 'read-only-storage', },
                 },
-                {// visibility buffer
+                {// geometry buffer
                     binding: 5,
                     visibility: GPUShaderStage.COMPUTE,
-                    texture: {
-                        sampleType: 'uint',
-                        viewDimension: "2d",
-                    },
+                    buffer: { type: 'read-only-storage', },
+                },
+                {// albedo map
+                    binding: 6,
+                    visibility: GPUShaderStage.COMPUTE,
+                    texture: { sampleType: "float", viewDimension: "2d-array", }
+                },
+                {// normal map
+                    binding: 7,
+                    visibility: GPUShaderStage.COMPUTE,
+                    texture: { sampleType: "float", viewDimension: "2d-array", }
+                },
+                {// specularRoughness map
+                    binding: 8,
+                    visibility: GPUShaderStage.COMPUTE,
+                    texture: { sampleType: "float", viewDimension: "2d-array", }
+                },
+                {// visibility buffer
+                    binding: 9,
+                    visibility: GPUShaderStage.COMPUTE,
+                    texture: { sampleType: 'uint', viewDimension: "2d", },
+                },
+                {// sampler
+                    binding: 10,
+                    visibility: GPUShaderStage.COMPUTE,
+                    sampler: { type: 'filtering', },
                 }
             ]
         });
@@ -84,31 +102,61 @@ class rayTracing {
                 },
                 {// camera buffer
                     binding: 1,
-                    resource: {
-                        buffer: this.camera.cameraBuffer,
-                    },
+                    resource: { buffer: this.camera.cameraBuffer, },
                 },
                 {// BVH buffer
                     binding: 2,
-                    resource: {
-                        buffer: this.model.bvhBuffer,
-                    },
+                    resource: { buffer: this.model.bvhBuffer, },
                 },
                 {// vertex buffer
                     binding: 3,
-                    resource: {
-                        buffer: this.model.vertexBuffer,
-                    },
+                    resource: { buffer: this.model.vertexBuffer, },
                 },
                 {// index buffer
                     binding: 4,
-                    resource: {
-                        buffer: this.model.indexBuffer,
-                    },
+                    resource: { buffer: this.model.indexBuffer, },
+                },
+                {// geometry buffer
+                    binding: 5,
+                    resource: { buffer: this.model.geometryBuffer, },
+                },
+                {// albedo map
+                    binding: 6,
+                    resource: this.model.albedo.texture.createView(
+                        {
+                            dimension: '2d-array',
+                            baseArrayLayer: 0,
+                            arrayLayerCount: Math.max(this.model.albedo.Storages.length, 1),
+                        }
+                    ),
+                },
+                {// normal map
+                    binding: 7,
+                    resource: this.model.normalMap.texture.createView(
+                        {
+                            dimension: '2d-array',
+                            baseArrayLayer: 0,
+                            arrayLayerCount: Math.max(this.model.normalMap.Storages.length, 1),
+                        }
+                    ),
+                },
+                {// specularRoughness map
+                    binding: 8,
+                    resource: this.model.specularRoughnessMap.texture.createView(
+                        {
+                            dimension: '2d-array',
+                            baseArrayLayer: 0,
+                            arrayLayerCount: Math.max(this.model.specularRoughnessMap.Storages.length, 1),
+                        }
+                    ),
                 },
                 {// visibility buffer
-                    binding: 5,
+                    binding: 9,
                     resource: this.vBuffer.createView(),
+                },
+                {// sampler
+                    binding: 10,
+                    resource: this.sampler,
                 }
             ]
         });

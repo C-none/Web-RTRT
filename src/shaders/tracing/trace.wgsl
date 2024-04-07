@@ -32,11 +32,6 @@ struct HitInfo {
 
 fn unpackPrimHitInfo(primId: u32) -> PrimHitInfo {
     let offset = vec3<u32>(indices[primId * 3], indices[primId * 3 + 1], indices[primId * 3 + 2]);
-    // var ret: PrimHitInfo;
-    // ret.pos[0] = vec4<f32 >(vertices[offset.x * 3], vertices[offset.x * 3 + 1], vertices[offset.x * 3 + 2], 1.0);
-    // ret.pos[1] = vec4<f32 >(vertices[offset.y * 3], vertices[offset.y * 3 + 1], vertices[offset.y * 3 + 2], 1.0);
-    // ret.pos[2] = vec4<f32 >(vertices[offset.z * 3], vertices[offset.z * 3 + 1], vertices[offset.z * 3 + 2], 1.0);
-    // return ret;
     return PrimHitInfo(array<vec4<f32>, 3 >(vertices[offset.x], vertices[offset.y], vertices[offset.z]));
 }
 
@@ -91,7 +86,7 @@ fn hitAABB(rayInfo: RayInfo, minCorner: vec3<f32>, maxCorner: vec3<f32>) -> bool
 fn traceRay(rayOrigin: vec3<f32>, rayDirection: vec3<f32>) -> RayInfo {
     var rayInfo: RayInfo;
     rayInfo.isHit = 0u;
-    rayInfo.hitDistance = 1000000.0;
+    rayInfo.hitDistance = 10000.0;
     rayInfo.worldRayOrigin = rayOrigin;
     rayInfo.worldRayDirection = normalize(rayDirection);
     rayInfo.directionInverse = vec3<f32 >(1.0) / rayDirection;
@@ -131,7 +126,7 @@ fn traceRay(rayOrigin: vec3<f32>, rayDirection: vec3<f32>) -> RayInfo {
 fn traceShadowRay(rayOrigin: vec3<f32>, rayDirection: vec3<f32>, lightDistance: f32) -> bool {
     var rayInfo: RayInfo;
     rayInfo.isHit = 0u;
-    rayInfo.hitDistance = lightDistance-0.01;
+    rayInfo.hitDistance = lightDistance-0.0001;
     rayInfo.worldRayOrigin = rayOrigin;
     rayInfo.worldRayDirection = normalize(rayDirection);
     rayInfo.directionInverse = vec3<f32 >(1.0) / rayDirection;

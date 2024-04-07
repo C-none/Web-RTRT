@@ -10,30 +10,61 @@ class Display {
     displayBindGroupLayout?: GPUBindGroupLayout;
 
     device: webGPUDevice;
+    vBuffer: GPUTexture;
+    depthTexture: GPUTexture;
     currentFrameBuffer: GPUTexture;
+    previousFrameBuffer: GPUTexture;
+    sampler: GPUSampler;
 
     constructor(device: webGPUDevice, buffers: BufferPool) {
         this.device = device;
-        this.currentFrameBuffer = buffers.vBuffer;
+        this.vBuffer = buffers.vBuffer;
+        this.depthTexture = buffers.depthTexture;
+        this.currentFrameBuffer = buffers.currentFrameBuffer;
+        this.previousFrameBuffer = buffers.previousFrameBuffer;
         this.displayBindGroupLayout = device.device.createBindGroupLayout({
             entries: [
                 {
                     binding: 0,
-                    visibility: GPUShaderStage.COMPUTE,
-                    texture: {
-                        viewDimension: '2d',
-                        sampleType: 'uint',
-                    },
-                },
-                {
-                    binding: 1,
                     visibility: GPUShaderStage.COMPUTE,
                     storageTexture: {
                         access: 'write-only',
                         format: device.format,
                     },
                 },
+                {
+                    binding: 1,
+                    visibility: GPUShaderStage.COMPUTE,
+                    sampler: {}
+                },
+                {
+                    binding: 2,
+                    visibility: GPUShaderStage.COMPUTE,
+                    texture: { sampleType: 'uint', },
+                },
+                {
+                    binding: 3,
+                    visibility: GPUShaderStage.COMPUTE,
+                    texture: { sampleType: 'depth', }
+                },
+                {
+                    binding: 4,
+                    visibility: GPUShaderStage.COMPUTE,
+                    texture: { sampleType: 'float', }
+                },
+                {
+                    binding: 5,
+                    visibility: GPUShaderStage.COMPUTE,
+                    texture: { sampleType: 'float', }
+                }
             ],
+        });
+        this.sampler = device.device.createSampler({
+            addressModeU: "repeat",
+            addressModeV: "repeat",
+            magFilter: "nearest",
+            minFilter: "nearest",
+            mipmapFilter: "nearest",
         });
         this.displayPipelineLayout = device.device.createPipelineLayout({
             bindGroupLayouts: [this.displayBindGroupLayout],
@@ -55,14 +86,12 @@ class Display {
         const bindGroup = this.displayBindGroup = this.device.device.createBindGroup({
             layout: this.displayBindGroupLayout,
             entries: [
-                {
-                    binding: 0,
-                    resource: this.currentFrameBuffer.createView(),
-                },
-                {
-                    binding: 1,
-                    resource: this.device.context.getCurrentTexture().createView(),
-                },
+                { binding: 0, resource: this.device.context.getCurrentTexture().createView(), },
+                { binding: 1, resource: this.sampler, },
+                { binding: 2, resource: this.vBuffer.createView(), },
+                { binding: 3, resource: this.depthTexture.createView(), },
+                { binding: 4, resource: this.currentFrameBuffer.createView(), },
+                { binding: 5, resource: this.previousFrameBuffer.createView(), },
             ],
         });
         const passEncoder = commandEncoder.beginComputePass();

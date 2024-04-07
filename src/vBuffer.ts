@@ -28,8 +28,8 @@ class VBuffer {
             addressModeV: "mirror-repeat",
             magFilter: "linear",
             minFilter: "linear",
-            // mipmapFilter: "linear",
-            // maxAnisotropy: 16,
+            mipmapFilter: "linear",
+            maxAnisotropy: 16,
         });
 
     }
@@ -39,24 +39,17 @@ class VBuffer {
                 {// camera
                     binding: 0,
                     visibility: GPUShaderStage.VERTEX,
-                    buffer: {
-                        type: 'uniform',
-                    }
+                    buffer: { type: 'uniform', }
                 },
                 {// albedo map
                     binding: 1,
                     visibility: GPUShaderStage.FRAGMENT,
-                    texture: {
-                        sampleType: "float",
-                        viewDimension: "2d-array",
-                    }
+                    texture: { sampleType: "float", viewDimension: "2d-array", }
                 },
                 {// sampler
                     binding: 2,
                     visibility: GPUShaderStage.FRAGMENT,
-                    sampler: {
-                        type: 'filtering',
-                    }
+                    sampler: { type: 'filtering', }
                 },
             ]
 
@@ -68,9 +61,7 @@ class VBuffer {
             entries: [
                 {
                     binding: 0,
-                    resource: {
-                        buffer: this.camera.cameraBuffer,
-                    },
+                    resource: { buffer: this.camera.cameraBuffer, },
                 },
                 {
                     binding: 1,
@@ -106,33 +97,26 @@ class VBuffer {
                 buffers: [
                     {
                         // position
-                        arrayStride: 4 * 4,
+                        arrayStride: 6 * 4,
                         attributes: [
                             {
                                 shaderLocation: 0,
                                 offset: 0,
-                                format: 'float32x4',
+                                format: 'float32x3',
+                            },
+                            {   // uv
+                                shaderLocation: 1,
+                                offset: 3 * 4,
+                                format: 'float32x2',
+                            },
+                            {
+                                // albedo map
+                                shaderLocation: 2,
+                                offset: 5 * 4,
+                                format: 'uint32',
                             },
                         ],
                     },
-                    {
-                        //geometry
-                        arrayStride: 16 * 4,
-                        attributes: [
-                            {
-                                // albedo map
-                                shaderLocation: 1,
-                                offset: 0,
-                                format: 'uint16x4',
-                            },
-                            {   // uv
-                                shaderLocation: 2,
-                                offset: 4 * 12,
-                                format: 'float32x2',
-                            },
-                        ],
-
-                    }
                 ],
             },
             fragment: {
@@ -140,8 +124,8 @@ class VBuffer {
                 entryPoint: 'fs',
                 targets: [{ format: this.vBuffer.format, },],
                 constants: {
-                    width: this.device.canvas.width,
-                    height: this.device.canvas.height,
+                    width: this.device.canvas.width / this.device.upscaleRatio,
+                    height: this.device.canvas.height / this.device.upscaleRatio,
                 },
             },
             primitive: {
@@ -183,15 +167,19 @@ class VBuffer {
         });
         passEncoder.setPipeline(this.pipeline);
         passEncoder.setBindGroup(0, this.bindingGroup);
-        passEncoder.setVertexBuffer(0, this.model.vertexBuffer);
-        passEncoder.setVertexBuffer(1, this.model.geometryBuffer);
-        passEncoder.setIndexBuffer(this.model.indexBuffer, 'uint32');
-        for (let i = 0; i < this.model.meshes.length; i++) {
-            const mesh = this.model.meshes[i];
-            if (this.camera.checkFrustum(mesh.boundingSphere)) {
-                passEncoder.drawIndexed(mesh.primitiveCount * 3, 1, mesh.primitiveOffset * 3);
-            }
-        }
+        passEncoder.setVertexBuffer(0, this.model.rasterVtxBuffer);
+        // passEncoder.setVertexBuffer(0, this.model.vertexBuffer);
+        // passEncoder.setVertexBuffer(1, this.model.geometryBuffer);
+        // passEncoder.setIndexBuffer(this.model.indexBuffer, 'uint32');
+        // Frustum culling
+        // for (let i = 0; i < this.model.meshes.length; i++) {
+        //     const mesh = this.model.meshes[i];
+        //     if (this.camera.checkFrustum(mesh.boundingSphere)) {
+        //         passEncoder.drawIndexed(mesh.primitiveCount * 3, 1, mesh.primitiveOffset * 3);
+        //     }
+        // }
+        passEncoder.draw(this.model.triangleSum * 3);
+        // passEncoder.drawIndexed(this.model.triangleSum * 3);
         passEncoder.end();
     }
 

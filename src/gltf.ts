@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { GLTFLoader, DRACOLoader, KTX2Loader } from 'three/examples/jsm/Addons.js';
 import { webGPUDevice } from './device';
 import { LogOnScreen } from './utils';
-// import * as GPUUtils from 'webgpu-utils';
+import * as GPUUtils from 'webgpu-utils';
 import computeWorker from './computeWorker.ts?worker';
 
 class Geometry {
@@ -85,7 +85,7 @@ class textureManager {
         let textureUsage = GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT;
         this.texture = device.device.createTexture({
             label: 'Textures', format: textureFormat, usage: textureUsage,
-            // mipLevelCount: GPUUtils.numMipLevels([this.Resolution, this.Resolution]),
+            mipLevelCount: GPUUtils.numMipLevels([this.Resolution, this.Resolution]),
             size: {
                 width: this.Resolution, height: this.Resolution,
                 depthOrArrayLayers: Math.max(this.textureMap.size, 1),
@@ -99,7 +99,7 @@ class textureManager {
                 { width: tex.source.data.width, height: tex.source.data.height, depthOrArrayLayers: 1, }
             );
         }
-        // GPUUtils.generateMipmap(device.device, this.texture);
+        GPUUtils.generateMipmap(device.device, this.texture);
     }
 }
 
@@ -116,12 +116,14 @@ class gltfmodel {
     vertexBuffer: GPUBuffer;
     indexBuffer: GPUBuffer;
     geometryBuffer: GPUBuffer;
+    rasterVtxBuffer: GPUBuffer;
     vertexSum: number = 0;
     triangleSum: number = 0;
     async init(path: string, device: webGPUDevice): Promise<void> {
 
         await this.loadModel(path);
         // this.loadTriangle();
+        this.prepareRasterVtxBuffer(device);
         this.prepareVtxIdxArray();
         let finished1 = this.prepareBVH(device);
         this.albedo.submit(device, 'rgba8unorm-srgb');
@@ -158,6 +160,7 @@ class gltfmodel {
                         if (!material.map) {
                             child.children.splice(i, 1);
                         }
+                        mesh.geometry.scale(child.scale.x, child.scale.y, child.scale.z);
                     }
                 }
             }
@@ -238,8 +241,59 @@ class gltfmodel {
         this.triangleSum += 1;
         this.meshes.push(mymesh);
 
-    }
+        triangle = new Float32Array([
+            -0.5, -0.5, 1.0,
+            0.5, -0.5, 1.0,
+            0.0, 0.5, 1.0,
+        ]);
+        normals = new Float32Array([
+            0.0, 0.0, -1.0,
+            0.0, 0.0, -1.0,
+            0.0, 0.0, -1.0,
+        ]);
+        uv = new Float32Array([
+            0.0, 0.0,
+            0.5, 1.0,
+            1.0, 0.0,
+        ]);
+        indices = new Uint32Array([0, 1, 2]);
+        BufferGeometry = new THREE.BufferGeometry();
+        BufferGeometry.setAttribute('position', new THREE.BufferAttribute(triangle, 3));
+        BufferGeometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+        BufferGeometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+        BufferGeometry.setIndex(new THREE.BufferAttribute(indices, 1));
+        mesh = new THREE.Mesh(BufferGeometry);
+        mymesh = new Mesh(mesh);
+        mymesh.primitiveOffset = this.triangleSum;
+        mymesh.vertexOffset = this.vertexSum;
+        this.vertexSum += 3;
+        this.triangleSum += 1;
+        this.meshes.push(mymesh);
 
+    }
+    prepareRasterVtxBuffer(device: webGPUDevice): void {
+        this.rasterVtxBuffer = device.device.createBuffer({
+            label: 'rasterVtxBuffer', size: this.triangleSum * 3 * Float32Array.BYTES_PER_ELEMENT * 6,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.VERTEX,
+            mappedAtCreation: true,
+        });
+        const arrayBuffer = this.rasterVtxBuffer.getMappedRange();
+        const floatArray = new Float32Array(arrayBuffer);
+        const uintArray = new Uint32Array(arrayBuffer);
+        for (let index = 0; index < this.meshes.length; index++) {
+            let mesh = this.meshes[index];
+            for (let i = 0; i < mesh.primitiveCount; i++) {
+                for (let j = 0; j < 3; j++) {
+                    const offset = (i + mesh.primitiveOffset) * 18 + j * 6;
+                    const vertexOffset = mesh.geometry.indices[i * 3 + j];
+                    floatArray.set(mesh.geometry.position.slice(vertexOffset * 3, vertexOffset * 3 + 3), offset);
+                    floatArray.set(mesh.geometry.uv.slice(vertexOffset * 2, vertexOffset * 2 + 2), offset + 3);
+                    uintArray.set(mesh.TextureId.slice(0, 1), offset + 5);
+                }
+            }
+        }
+        this.rasterVtxBuffer.unmap();
+    }
     prepareVtxIdxArray(): void {
         this.vertexArray = new Float32Array(this.vertexSum * 4).fill(1);
         this.indexArray = new Uint32Array(this.triangleSum * 3).fill(0);

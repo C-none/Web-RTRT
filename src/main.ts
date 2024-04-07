@@ -42,10 +42,10 @@ class Application {
         const commandEncoder = this.device.device.createCommandEncoder();
 
         this.vBuffer.record(commandEncoder);
-        // this.rayTracing.record(commandEncoder);
+        this.rayTracing.record(commandEncoder);
         this.display.record(commandEncoder);
 
-        this.buffers.update(commandEncoder);
+        this.buffers.update(commandEncoder, this.device);
 
         let cmdBuffer = commandEncoder.finish();
         this.device.device.queue.submit([cmdBuffer]);
