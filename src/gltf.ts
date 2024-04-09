@@ -273,7 +273,7 @@ class gltfmodel {
     }
     prepareRasterVtxBuffer(device: webGPUDevice): void {
         this.rasterVtxBuffer = device.device.createBuffer({
-            label: 'rasterVtxBuffer', size: this.triangleSum * 3 * Float32Array.BYTES_PER_ELEMENT * 6,
+            label: 'rasterVtxBuffer', size: this.triangleSum * 3 * Float32Array.BYTES_PER_ELEMENT * 3,
             usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.VERTEX,
             mappedAtCreation: true,
         });
@@ -284,11 +284,9 @@ class gltfmodel {
             let mesh = this.meshes[index];
             for (let i = 0; i < mesh.primitiveCount; i++) {
                 for (let j = 0; j < 3; j++) {
-                    const offset = (i + mesh.primitiveOffset) * 18 + j * 6;
+                    const offset = (i + mesh.primitiveOffset) * 9 + j * 3;
                     const vertexOffset = mesh.geometry.indices[i * 3 + j];
                     floatArray.set(mesh.geometry.position.slice(vertexOffset * 3, vertexOffset * 3 + 3), offset);
-                    floatArray.set(mesh.geometry.uv.slice(vertexOffset * 2, vertexOffset * 2 + 2), offset + 3);
-                    uintArray.set(mesh.TextureId.slice(0, 1), offset + 5);
                 }
             }
         }
@@ -404,6 +402,7 @@ class gltfmodel {
                 for (let i = 0; i < mesh.vertexCount; i++) {
                     let offset = (i + mesh.vertexOffset) * 16;
                     textureIDArray.set(mesh.TextureId, offset);
+                    textureIDArray.set([255 + (255 << 8)], offset + 7);
                     geometryArray.set(mesh.geometry.normal.slice(i * 3, i * 3 + 3), offset + 4);
                     geometryArray.set(mesh.geometry.tangent.slice(i * 4, i * 4 + 4), offset + 8);
                     geometryArray.set(mesh.geometry.uv.slice(i * 2, i * 2 + 2), offset + 12);

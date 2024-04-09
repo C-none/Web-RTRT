@@ -97,24 +97,24 @@ class VBuffer {
                 buffers: [
                     {
                         // position
-                        arrayStride: 6 * 4,
+                        arrayStride: 3 * 4,
                         attributes: [
                             {
                                 shaderLocation: 0,
                                 offset: 0,
                                 format: 'float32x3',
                             },
-                            {   // uv
-                                shaderLocation: 1,
-                                offset: 3 * 4,
-                                format: 'float32x2',
-                            },
-                            {
-                                // albedo map
-                                shaderLocation: 2,
-                                offset: 5 * 4,
-                                format: 'uint32',
-                            },
+                            // {   // uv
+                            //     shaderLocation: 1,
+                            //     offset: 3 * 4,
+                            //     format: 'float32x2',
+                            // },
+                            // {
+                            //     // albedo map
+                            //     shaderLocation: 2,
+                            //     offset: 5 * 4,
+                            //     format: 'uint32',
+                            // },
                         ],
                     },
                 ],
@@ -172,14 +172,14 @@ class VBuffer {
         // passEncoder.setVertexBuffer(1, this.model.geometryBuffer);
         // passEncoder.setIndexBuffer(this.model.indexBuffer, 'uint32');
         // Frustum culling
-        // for (let i = 0; i < this.model.meshes.length; i++) {
-        //     const mesh = this.model.meshes[i];
-        //     if (this.camera.checkFrustum(mesh.boundingSphere)) {
-        //         passEncoder.drawIndexed(mesh.primitiveCount * 3, 1, mesh.primitiveOffset * 3);
-        //     }
-        // }
-        passEncoder.draw(this.model.triangleSum * 3);
-        // passEncoder.drawIndexed(this.model.triangleSum * 3);
+        for (let i = 0; i < this.model.meshes.length; i++) {
+            const mesh = this.model.meshes[i];
+            if (this.camera.checkFrustum(mesh.boundingSphere)) {
+                // passEncoder.drawIndexed(mesh.primitiveCount * 3, 1, mesh.primitiveOffset * 3);
+                passEncoder.draw(mesh.primitiveCount * 3, 1, mesh.primitiveOffset * 3);
+            }
+        }
+        // passEncoder.draw(this.model.triangleSum * 3);
         passEncoder.end();
     }
 

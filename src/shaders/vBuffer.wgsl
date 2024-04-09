@@ -18,8 +18,8 @@ struct Visibility {
 struct InterStage {
     @builtin(position) pos: vec4<f32>,
     @location(0) BaryCoord: vec4<f32>,
-    @location(1) uv: vec2<f32>,
-    @location(2) @interpolate(flat) textureId: u32,
+    // @location(1) uv: vec2<f32>,
+    // @location(2) @interpolate(flat) textureId: u32,
     @location(3) @interpolate(flat) primId: u32,
     @location(4) lastPos: vec4<f32>,
 };
@@ -28,8 +28,8 @@ struct InterStage {
 fn vs(
     @builtin(vertex_index) index: u32,
     @location(0) pos: vec4<f32>,
-    @location(1) uv: vec2<f32>,
-    @location(2) textureId: u32,
+    // @location(1) uv: vec2<f32>,
+    // @location(2) textureId: u32,
 ) -> InterStage {
     let BaryCoords: array<vec4<f32>,3> = array<vec4<f32>,3>(
         vec4<f32>(1.0, 0.0, 0.0, 1.0),
@@ -41,8 +41,8 @@ fn vs(
     return InterStage(
         vtxpos,
         BaryCoords[index % 3],
-        uv,
-        textureId,
+        // uv,
+        // textureId,
         index / 3,
         lastvtxpos,
     );
@@ -59,12 +59,12 @@ fn fs(
     _ = height;
     _ = width;
     var color = vec4<f32>(1.0);
-    var sampleId = stage.textureId;
+    // var sampleId = stage.textureId;
     // color = textureSampleLevel(albedo, sample, stage.uv, sampleId, 0.0);
-    color = textureSample(albedo, sample, stage.uv, sampleId); // mipmap
-    if color.a < 0.5 {
-            discard;
-    }
+    // color = textureSample(albedo, sample, stage.uv, sampleId); // mipmap
+    // if color.a < 0.5 {
+    //         discard;
+    // }
 
     let lastScreenPos = vec2<f32>(stage.lastPos.x / stage.lastPos.w, - stage.lastPos.y / stage.lastPos.w) / 2.0 + 0.5;
     let currentScreenPos = vec2<f32>(stage.pos.x / width, stage.pos.y / height);
@@ -76,5 +76,5 @@ fn fs(
         color,
     );
 
-    return vec4<u32>(pack2x16float(visibility.baryCoord), pack2x16float(visibility.motionVec), visibility.primId, pack4x8unorm(visibility.albedo));
+    return vec4<u32>(bitcast<vec2<u32>>(visibility.baryCoord), visibility.primId, pack2x16float(visibility.motionVec));
 }

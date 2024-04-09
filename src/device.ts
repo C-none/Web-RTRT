@@ -4,7 +4,7 @@ class webGPUDevice {
     device: GPUDevice;
     context: GPUCanvasContext;
     format: GPUTextureFormat;
-    upscaleRatio: number = 2;
+    upscaleRatio: number = 1;
 
     async init(canvas: HTMLCanvasElement) {
         this.canvas = canvas;

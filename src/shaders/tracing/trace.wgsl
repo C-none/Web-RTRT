@@ -49,7 +49,7 @@ fn hitTriangle(rayInfo: RayInfo, triangleIndex: u32) -> HitInfo {
 
     let det = dot(e1, s1);
     var ret = HitInfo(vec3<f32 >(0.0), 0.0, false);
-    if det < INTERSECT_EPSILON && det > -INTERSECT_EPSILON {
+    if abs(det) < INTERSECT_EPSILON {
         return ret;
     }
 
@@ -66,6 +66,9 @@ fn hitTriangle(rayInfo: RayInfo, triangleIndex: u32) -> HitInfo {
     }
     ret.barycentricCoord = vec3<f32 >(1.0 - (b1 + b2), b1, b2);
     ret.hitDistance = dot(e2, s2);
+    if ret.hitDistance < 0.0 {
+        return ret;
+    }
     ret.isHit = true;
     return ret;
 }
@@ -87,8 +90,8 @@ fn traceRay(rayOrigin: vec3<f32>, rayDirection: vec3<f32>) -> RayInfo {
     var rayInfo: RayInfo;
     rayInfo.isHit = 0u;
     rayInfo.hitDistance = 10000.0;
-    rayInfo.worldRayOrigin = rayOrigin;
     rayInfo.worldRayDirection = normalize(rayDirection);
+    rayInfo.worldRayOrigin = rayOrigin + rayInfo.worldRayDirection * 0.0001;
     rayInfo.directionInverse = vec3<f32 >(1.0) / rayDirection;
     rayInfo.PrimitiveIndex = 0u;
 
@@ -127,8 +130,8 @@ fn traceShadowRay(rayOrigin: vec3<f32>, rayDirection: vec3<f32>, lightDistance: 
     var rayInfo: RayInfo;
     rayInfo.isHit = 0u;
     rayInfo.hitDistance = lightDistance-0.0001;
-    rayInfo.worldRayOrigin = rayOrigin;
     rayInfo.worldRayDirection = normalize(rayDirection);
+    rayInfo.worldRayOrigin = rayOrigin + rayInfo.worldRayDirection * 0.0001;
     rayInfo.directionInverse = vec3<f32 >(1.0) / rayDirection;
     rayInfo.PrimitiveIndex = 0u;
 

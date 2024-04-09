@@ -28,6 +28,8 @@ class rayTracing {
             addressModeV: "mirror-repeat",
             magFilter: "linear",
             minFilter: "linear",
+            mipmapFilter: "linear",
+            maxAnisotropy: 16,
         });
     }
 
@@ -174,8 +176,12 @@ class rayTracing {
             compute: {
                 module: computeShaderModule,
                 entryPoint: 'main',
+                constants: {
+                    halfConeAngle: this.camera.camera.fov * Math.PI / 180 / (this.device.canvas.height / this.device.upscaleRatio * 2),
+                }
             }
         });
+        console.log(this.camera.camera.fov * Math.PI / 180 / (this.device.canvas.height / this.device.upscaleRatio * 2));
     }
     async init() {
         this.buildBindGroupLayout();
