@@ -9,44 +9,44 @@ override zNear: f32 = 0.01;
 override zFar: f32 = 50.0;
 
 @compute @workgroup_size(8, 8, 1)
-fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3<u32>) {
-    let screen_size: vec2<u32> = textureDimensions(output);
-    let screen_pos: vec2<u32> = vec2<u32>(GlobalInvocationID.xy);
+fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
+    let screen_size: vec2u = textureDimensions(output);
+    let screen_pos: vec2u = vec2u(GlobalInvocationID.xy);
     if screen_pos.x >= screen_size.x || screen_pos.y >= screen_size.y {
         return;
     }
-    let origin_size: vec2<u32> = textureDimensions(currentFrame);
+    let origin_size: vec2u = textureDimensions(currentFrame);
     let scale_ratio: f32 = f32(screen_size.x) / f32(origin_size.x);
-    let origin_pos: vec2<u32> = vec2<u32>(vec2<f32>(screen_pos) / scale_ratio);
+    let origin_pos: vec2u = vec2u(vec2f(screen_pos) / scale_ratio);
 
     // linear depth
-    let depth = (textureSampleLevel(depthBuffer, samp, vec2<f32>(origin_pos) / vec2<f32>(origin_size), 0) + 1.0) / 2.0;
+    let depth = (textureSampleLevel(depthBuffer, samp, vec2f(origin_pos) / vec2f(origin_size), 0) + 1.0) / 2.0;
     // let depth = (textureLoad(depthBuffer, origin_pos, 0) + 1.0) / 2.0;
     let zlinear = zNear * zFar / (zFar + depth * (zNear - zFar));
-    // textureStore(output, screen_pos, vec4<f32>(vec3<f32>(zlinear / 20.0), 1.0));
+    // textureStore(output, screen_pos, vec4f(vec3f(zlinear / 20.0), 1.0));
 
     // vbuffer 
-    var visibility: vec4<u32> = textureLoad(vBuffer, origin_pos, 0);
-    let betagamma = bitcast<vec2<f32>>(visibility.xy);
-    let barycentric = vec3<f32>(1.0 - betagamma.x - betagamma.y, betagamma.x, betagamma.y);
-    // textureStore(output, screen_pos, vec4<f32>(barycentric, 1.0));
+    var visibility: vec4u = textureLoad(vBuffer, origin_pos, 0);
+    let betagamma = bitcast<vec2f>(visibility.xy);
+    let barycentric = vec3f(1.0 - betagamma.x - betagamma.y, betagamma.x, betagamma.y);
+    // textureStore(output, screen_pos, vec4f(barycentric, 1.0));
 
     // [0, width] x [0, height] range of motion vector
     // .------> X
     // |
     // v
     // Y
-    let motionVec: vec2<f32> = unpack2x16float(visibility.w);
-    // textureStore(output, screen_pos, vec4<f32>(motionVec.xy * 0.05+0.5, 0.0, 1.0));
+    let motionVec: vec2f = unpack2x16float(visibility.w);
+    // textureStore(output, screen_pos, vec4f(motionVec.xy * 0.05+0.5, 0.0, 1.0));
     let trianlgeID = visibility.z;
-    // textureStore(output, screen_pos, vec4<f32>(vec3<f32>(f32(visibility.z) / 3.), 1.));
+    // textureStore(output, screen_pos, vec4f(vec3f(f32(visibility.z) / 3.), 1.));
 
     // raytracing depth
-    var color = vec4<f32>(0.0, 0.0, 0.0, 1.0);
+    var color = vec4f(0.0, 0.0, 0.0, 1.0);
     // if screen_pos.x < screen_size.x / 2 {
     color = textureLoad(currentFrame, origin_pos, 0);
     // } else {
-    //     color = textureSampleLevel(previousFrame, samp, vec2<f32>(origin_pos) / vec2<f32>(origin_size), 0);
+    //     color = textureSampleLevel(previousFrame, samp, vec2f(origin_pos) / vec2f(origin_size), 0);
     // }
     textureStore(output, screen_pos, color);
 }

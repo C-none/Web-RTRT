@@ -402,7 +402,7 @@ class gltfmodel {
                 for (let i = 0; i < mesh.vertexCount; i++) {
                     let offset = (i + mesh.vertexOffset) * 16;
                     textureIDArray.set(mesh.TextureId, offset);
-                    textureIDArray.set([255 + (255 << 8)], offset + 7);
+                    textureIDArray.set([128 + (128 << 8)], offset + 7);
                     geometryArray.set(mesh.geometry.normal.slice(i * 3, i * 3 + 3), offset + 4);
                     geometryArray.set(mesh.geometry.tangent.slice(i * 4, i * 4 + 4), offset + 8);
                     geometryArray.set(mesh.geometry.uv.slice(i * 2, i * 2 + 2), offset + 12);

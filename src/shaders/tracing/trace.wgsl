@@ -10,29 +10,29 @@ struct BVH {
 };
 
 struct RayInfo {
-    worldRayOrigin: vec3<f32>,
+    worldRayOrigin: vec3f,
     isHit: u32,
-    worldRayDirection: vec3<f32>,
+    worldRayDirection: vec3f,
     hitDistance: f32,
-    directionInverse: vec3<f32>,
+    directionInverse: vec3f,
     PrimitiveIndex: u32,
-    hitAttribute: vec3<f32>,
+    hitAttribute: vec3f,
 };
 
 
 struct PrimHitInfo {
-    pos: array<vec4<f32>, 3>
+    pos: array<vec4f, 3>
 };
 
 struct HitInfo {
-    barycentricCoord: vec3<f32>,
+    barycentricCoord: vec3f,
     hitDistance: f32,
     isHit: bool,
 };
 
 fn unpackPrimHitInfo(primId: u32) -> PrimHitInfo {
-    let offset = vec3<u32>(indices[primId * 3], indices[primId * 3 + 1], indices[primId * 3 + 2]);
-    return PrimHitInfo(array<vec4<f32>, 3 >(vertices[offset.x], vertices[offset.y], vertices[offset.z]));
+    let offset = vec3u(indices[primId * 3], indices[primId * 3 + 1], indices[primId * 3 + 2]);
+    return PrimHitInfo(array<vec4f, 3 >(vertices[offset.x], vertices[offset.y], vertices[offset.z]));
 }
 
 fn hitTriangle(rayInfo: RayInfo, triangleIndex: u32) -> HitInfo {
@@ -43,9 +43,9 @@ fn hitTriangle(rayInfo: RayInfo, triangleIndex: u32) -> HitInfo {
     let origin = rayInfo.worldRayOrigin;
     let direction = rayInfo.worldRayDirection;
 
-    let e1: vec3<f32> = primInfo.pos[1].xyz - primInfo.pos[0].xyz;
-    let e2: vec3<f32> = primInfo.pos[2].xyz - primInfo.pos[0].xyz;
-    let s1: vec3<f32> = cross(direction, e2);
+    let e1: vec3f = primInfo.pos[1].xyz - primInfo.pos[0].xyz;
+    let e2: vec3f = primInfo.pos[2].xyz - primInfo.pos[0].xyz;
+    let s1: vec3f = cross(direction, e2);
 
     let det = dot(e1, s1);
     var ret = HitInfo(vec3<f32 >(0.0), 0.0, false);
@@ -53,13 +53,13 @@ fn hitTriangle(rayInfo: RayInfo, triangleIndex: u32) -> HitInfo {
         return ret;
     }
 
-    let s: vec3<f32> = (origin - primInfo.pos[0].xyz) / det;
+    let s: vec3f = (origin - primInfo.pos[0].xyz) / det;
     let b1 = dot(s, s1);
     if b1 < 0.0 || b1 > 1.0 {
         return ret;
     }
 
-    let s2: vec3<f32> = cross(s, e1);
+    let s2: vec3f = cross(s, e1);
     let b2 = dot(direction, s2);
     if b2 < 0.0 || b1 + b2 > 1.0 {
         return ret;
@@ -73,11 +73,11 @@ fn hitTriangle(rayInfo: RayInfo, triangleIndex: u32) -> HitInfo {
     return ret;
 }
 
-fn hitAABB(rayInfo: RayInfo, minCorner: vec3<f32>, maxCorner: vec3<f32>) -> bool {
-    let t1: vec3<f32> = (minCorner - rayInfo.worldRayOrigin) * rayInfo.directionInverse;
-    let t2: vec3<f32> = (maxCorner - rayInfo.worldRayOrigin) * rayInfo.directionInverse;
-    let tmin: vec3<f32> = min(t1, t2);
-    let tmax: vec3<f32> = max(t1, t2);
+fn hitAABB(rayInfo: RayInfo, minCorner: vec3f, maxCorner: vec3f) -> bool {
+    let t1: vec3f = (minCorner - rayInfo.worldRayOrigin) * rayInfo.directionInverse;
+    let t2: vec3f = (maxCorner - rayInfo.worldRayOrigin) * rayInfo.directionInverse;
+    let tmin: vec3f = min(t1, t2);
+    let tmax: vec3f = max(t1, t2);
     let t_min: f32 = max(max(tmin.x, tmin.y), tmin.z);
     let t_max: f32 = min(min(tmax.x, tmax.y), tmax.z);
     if t_min > t_max || t_max < 0.0 || t_min > rayInfo.hitDistance {
@@ -86,12 +86,12 @@ fn hitAABB(rayInfo: RayInfo, minCorner: vec3<f32>, maxCorner: vec3<f32>) -> bool
     return true;
 }
 
-fn traceRay(rayOrigin: vec3<f32>, rayDirection: vec3<f32>) -> RayInfo {
+fn traceRay(rayOrigin: vec3f, rayDirection: vec3f) -> RayInfo {
     var rayInfo: RayInfo;
     rayInfo.isHit = 0u;
     rayInfo.hitDistance = 10000.0;
     rayInfo.worldRayDirection = normalize(rayDirection);
-    rayInfo.worldRayOrigin = rayOrigin + rayInfo.worldRayDirection * 0.0001;
+    rayInfo.worldRayOrigin = rayOrigin + rayInfo.worldRayDirection * 0.001;
     rayInfo.directionInverse = vec3<f32 >(1.0) / rayDirection;
     rayInfo.PrimitiveIndex = 0u;
 
@@ -126,12 +126,12 @@ fn traceRay(rayOrigin: vec3<f32>, rayDirection: vec3<f32>) -> RayInfo {
     return rayInfo;
 }
 
-fn traceShadowRay(rayOrigin: vec3<f32>, rayDirection: vec3<f32>, lightDistance: f32) -> bool {
+fn traceShadowRay(rayOrigin: vec3f, rayDirection: vec3f, lightDistance: f32) -> bool {
     var rayInfo: RayInfo;
     rayInfo.isHit = 0u;
     rayInfo.hitDistance = lightDistance-0.0001;
     rayInfo.worldRayDirection = normalize(rayDirection);
-    rayInfo.worldRayOrigin = rayOrigin + rayInfo.worldRayDirection * 0.0001;
+    rayInfo.worldRayOrigin = rayOrigin + rayInfo.worldRayDirection * 0.001;
     rayInfo.directionInverse = vec3<f32 >(1.0) / rayDirection;
     rayInfo.PrimitiveIndex = 0u;
 

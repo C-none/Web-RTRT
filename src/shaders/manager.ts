@@ -4,6 +4,7 @@ import compute from './compute.position.wgsl?raw';
 
 import vBuffer from './vBuffer.wgsl?raw';
 
+import common from './tracing/common.wgsl?raw';
 import trace from './tracing/trace.wgsl?raw';
 import rayGen from './tracing/rayGen.wgsl?raw';
 import slopeAABBTest from './tracing/slopeAABBTest.wgsl?raw';
@@ -18,6 +19,7 @@ class ShaderManager {
         "basic.instanced.vert.wgsl": basic,
         "position.frag.wgsl": position,
         "compute.position.wgsl": compute,
+        "common.wgsl": common,
         "trace.wgsl": trace,
         "vBuffer.wgsl": vBuffer,
         "rayGen.wgsl": rayGen,

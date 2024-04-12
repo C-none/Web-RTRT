@@ -29,7 +29,7 @@ class rayTracing {
             magFilter: "linear",
             minFilter: "linear",
             mipmapFilter: "linear",
-            maxAnisotropy: 16,
+            // maxAnisotropy: 16,
         });
     }
 
