@@ -148,7 +148,7 @@ class gltfmodel {
             console.log('loading: ' + (xhr.loaded / xhr.total * 100) + '%');
         }) as any;
         const model = gltf.scene;
-        // console.log(model);
+        console.log(model);
 
         // find mesh without normal map and delete it.
         model.traverse((child: THREE.Object3D) => {
@@ -157,9 +157,11 @@ class gltfmodel {
                     if (child.children[i] instanceof THREE.Mesh) {
                         let mesh = child.children[i] as THREE.Mesh;
                         let material = mesh.material as any;
-                        if (!material.map) {
-                            child.children.splice(i, 1);
-                        }
+                        // if (!material.map) {
+                        //     console.log(child.children[i]);
+                        //     child.children.splice(i, 1);
+                        //     continue;
+                        // }
                         mesh.geometry.scale(child.scale.x, child.scale.y, child.scale.z);
                     }
                 }

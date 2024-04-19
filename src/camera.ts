@@ -58,7 +58,7 @@ class CameraManager {
         // this.controls.enableDamping = true;
         // this.controls.dampingFactor = 0.02
         this.controls.target.set(0, 5, 0);
-        this.camera.position.set(5, 5, 0);
+        this.camera.position.set(-5, 5, 0);
         // this.controls.target.set(0, 0, 0);
         // this.camera.position.set(0, 0, 2);
         this.controls.update();

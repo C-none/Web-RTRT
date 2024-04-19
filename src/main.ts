@@ -6,6 +6,7 @@ import { VBuffer } from './vBuffer';
 import { rayTracing } from './raytracing';
 import { LogOnScreen } from './utils';
 import { BufferPool } from './screenBuffer';
+import { func } from 'three/examples/jsm/nodes/Nodes.js';
 
 class Application {
     device: webGPUDevice;
@@ -52,17 +53,34 @@ class Application {
     }
 
     timeStamp = Date.now();
-    frameCnt = 0;
     run() {
-        this.buildCmdBuffer();
-        if (this.frameCnt == 100) {
-            const now = Date.now()
-            LogOnScreen("fps: " + (1000 * 100 / (now - this.timeStamp)).toFixed(1));
-            this.timeStamp = now
-            this.frameCnt = 0;
+        class Timer {
+            total: number = 0;
+            cursor: number = 0;
+            numSamples: number = 50;
+            samples: number[] = new Array(this.numSamples).fill(0);
+            addSample(sample: number) {
+                sample = Math.min(1000, sample);
+                this.total += sample - this.samples[this.cursor];
+                this.samples[this.cursor] = sample;
+                this.cursor = (this.cursor + 1) % this.numSamples;
+            }
+            print() {
+                if (this.cursor == 0)
+                    LogOnScreen("fps: " + (this.total / this.numSamples).toPrecision(3));
+            }
+        };
+        let timer = new Timer();
+        const render = () => {
+            requestAnimationFrame(render);
+            this.buildCmdBuffer();
+            const now = performance.now();
+            const delta = now - this.timeStamp;
+            this.timeStamp = now;
+            timer.addSample(1000 / delta);
+            timer.print();
         }
-        this.frameCnt++
-        requestAnimationFrame(() => this.run());
+        requestAnimationFrame(render);
     }
 }
 

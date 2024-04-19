@@ -33,7 +33,7 @@ function init() {
             const draco = new DRACOLoader().setDecoderPath('./three/draco/');
             const loader = new GLTFLoader().setDRACOLoader(draco);
             // const loader = new GLTFLoader();
-            loader.load('assets/bistro_internal/internal.gltf', async function (gltf) {
+            loader.load('assets/bistro_external/external.gltf', async function (gltf) {
 
                 const model = gltf.scene;
 

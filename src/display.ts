@@ -5,10 +5,11 @@ import { shaders } from "./shaders/manager";
 
 // copy from framebuffer to the screen
 class Display {
-    displayPipeline?: GPUComputePipeline;
-    displayBindGroup?: GPUBindGroup;
-    displayPipelineLayout?: GPUPipelineLayout;
-    displayBindGroupLayout?: GPUBindGroupLayout;
+    displayPipeline: GPUComputePipeline;
+    displayBindGroup: GPUBindGroup;
+    displayPipelineLayout: GPUPipelineLayout;
+    displayBindGroupLayout: GPUBindGroupLayout;
+    bindGroupEntries: GPUBindGroupEntry[];
 
     device: webGPUDevice;
     vBuffer: GPUTexture;
@@ -67,6 +68,14 @@ class Display {
             minFilter: "nearest",
             mipmapFilter: "nearest",
         });
+        this.bindGroupEntries = [
+            { binding: 0, resource: this.device.context.getCurrentTexture().createView(), },
+            { binding: 1, resource: this.sampler, },
+            { binding: 2, resource: this.vBuffer.createView(), },
+            { binding: 3, resource: this.depthTexture.createView(), },
+            { binding: 4, resource: this.currentFrameBuffer.createView(), },
+            { binding: 5, resource: this.previousFrameBuffer.createView(), },
+        ]
         this.displayPipelineLayout = device.device.createPipelineLayout({
             bindGroupLayouts: [this.displayBindGroupLayout],
         });
@@ -84,24 +93,17 @@ class Display {
                 }
             },
         });
-        // console.log(shaders.get('display.wgsl').replace('displayFormat', device.format));
     }
 
     record(commandEncoder: GPUCommandEncoder) {
-        const bindGroup = this.displayBindGroup = this.device.device.createBindGroup({
+        this.bindGroupEntries[0].resource = this.device.context.getCurrentTexture().createView();
+        this.displayBindGroup = this.device.device.createBindGroup({
             layout: this.displayBindGroupLayout,
-            entries: [
-                { binding: 0, resource: this.device.context.getCurrentTexture().createView(), },
-                { binding: 1, resource: this.sampler, },
-                { binding: 2, resource: this.vBuffer.createView(), },
-                { binding: 3, resource: this.depthTexture.createView(), },
-                { binding: 4, resource: this.currentFrameBuffer.createView(), },
-                { binding: 5, resource: this.previousFrameBuffer.createView(), },
-            ],
+            entries: this.bindGroupEntries,
         });
         const passEncoder = commandEncoder.beginComputePass();
         passEncoder.setPipeline(this.displayPipeline);
-        passEncoder.setBindGroup(0, bindGroup);
+        passEncoder.setBindGroup(0, this.displayBindGroup);
         passEncoder.dispatchWorkgroups(Math.ceil(this.device.canvas.width / 8), Math.ceil(this.device.canvas.height / 8), 1);
         passEncoder.end();
 

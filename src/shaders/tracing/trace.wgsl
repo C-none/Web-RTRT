@@ -25,7 +25,7 @@ struct PrimHitInfo {
 };
 
 struct HitInfo {
-    barycentricCoord: vec3f,
+    baryCoord: vec3f,
     hitDistance: f32,
     isHit: bool,
 };
@@ -52,23 +52,22 @@ fn hitTriangle(rayInfo: RayInfo, triangleIndex: u32) -> HitInfo {
     if abs(det) < INTERSECT_EPSILON {
         return ret;
     }
-
     let s: vec3f = (origin - primInfo.pos[0].xyz) / det;
     let b1 = dot(s, s1);
     if b1 < 0.0 || b1 > 1.0 {
         return ret;
     }
-
     let s2: vec3f = cross(s, e1);
     let b2 = dot(direction, s2);
     if b2 < 0.0 || b1 + b2 > 1.0 {
         return ret;
     }
-    ret.barycentricCoord = vec3<f32 >(1.0 - (b1 + b2), b1, b2);
     ret.hitDistance = dot(e2, s2);
-    if ret.hitDistance < 0.0 {
+    if ret.hitDistance < 0.0 && ret.hitDistance < rayInfo.hitDistance {
         return ret;
     }
+    ret.baryCoord = vec3<f32 >(1.0 - (b1 + b2), b1, b2);
+    // ret.isHit = all(ret.baryCoord > vec3f(0.)) && ret.hitDistance >= 0.0 && ret.hitDistance < rayInfo.hitDistance;
     ret.isHit = true;
     return ret;
 }
@@ -114,10 +113,10 @@ fn traceRay(rayOrigin: vec3f, rayDirection: vec3f) -> RayInfo {
                 stack[stackCurl] = node.child + 1u - leftChildFarther;
             } else {
                 let hitInfo = hitTriangle(rayInfo, node.child);
-                if hitInfo.isHit && hitInfo.hitDistance < rayInfo.hitDistance {
+                if hitInfo.isHit {
                     rayInfo.isHit = 1u;
                     rayInfo.hitDistance = hitInfo.hitDistance;
-                    rayInfo.hitAttribute = hitInfo.barycentricCoord;
+                    rayInfo.hitAttribute = hitInfo.baryCoord;
                     rayInfo.PrimitiveIndex = node.child;
                 }
             }
@@ -154,7 +153,7 @@ fn traceShadowRay(rayOrigin: vec3f, rayDirection: vec3f, lightDistance: f32) -> 
                 stack[stackCurl] = node.child + 1u - leftChildFarther;
             } else {
                 let hitInfo = hitTriangle(rayInfo, node.child);
-                if hitInfo.isHit && hitInfo.hitDistance < rayInfo.hitDistance {
+                if hitInfo.isHit {
                     return true;
                 }
             }
