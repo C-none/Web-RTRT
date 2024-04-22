@@ -48,8 +48,8 @@ fn vs(
     );
 }
 
-override width: f32 ;          
-override height: f32 ; 
+override width: u32 ;          
+override height: u32 ; 
 
 @fragment
 fn fs(
@@ -67,11 +67,11 @@ fn fs(
     // }
 
     let lastScreenPos = vec2f(stage.lastPos.x / stage.lastPos.w, - stage.lastPos.y / stage.lastPos.w) / 2.0 + 0.5;
-    let currentScreenPos = vec2f(stage.pos.x / width, stage.pos.y / height);
+    let currentScreenPos = vec2f(stage.pos.x / f32(width), stage.pos.y / f32(height));
     let motionVec = currentScreenPos - lastScreenPos;
     var visibility = Visibility(
         stage.BaryCoord.yz,
-        vec2f(motionVec.x * width, motionVec.y * height), // motionVec
+        vec2f(motionVec.x * f32(width), motionVec.y * f32(height)), // motionVec
         stage.primId,
         // color,
     );

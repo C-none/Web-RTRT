@@ -124,8 +124,8 @@ class VBuffer {
                 entryPoint: 'fs',
                 targets: [{ format: this.vBuffer.format, },],
                 constants: {
-                    width: this.device.canvas.width / this.device.upscaleRatio,
-                    height: this.device.canvas.height / this.device.upscaleRatio,
+                    width: Math.floor(this.device.canvas.width / this.device.upscaleRatio),
+                    height: Math.floor(this.device.canvas.height / this.device.upscaleRatio),
                 },
             },
             primitive: {

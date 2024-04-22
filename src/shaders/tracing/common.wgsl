@@ -35,6 +35,7 @@ fn samplingHemisphere() -> vec4f {
 struct PrimaryHitInfo {
     baryCoord: vec3f,
     primId: u32,
+    motionVec: vec2f,
 };
 
 struct PointInfo {
@@ -52,6 +53,7 @@ fn primaryHit(screen_pos: vec2u) -> PrimaryHitInfo {
     let bataGamma = bitcast<vec2f>(visibilityInfo.xy);
     primaryHitInfo.baryCoord = vec3f(1.0 - bataGamma.x - bataGamma.y, bataGamma.x, bataGamma.y);
     primaryHitInfo.primId = visibilityInfo.z;
+    primaryHitInfo.motionVec = unpack2x16float(visibilityInfo.w);
     return primaryHitInfo;
 }
 
@@ -114,6 +116,19 @@ fn unpackTriangle(triangle: PrimaryHitInfo, origin: vec3f, direction: vec3f, hal
     let T = normalize(tangent.xyz);
     let B = normalize(cross(iterpolatedNormal, T) * tangent.w);
     retInfo.tbn = mat3x3f(T, B, iterpolatedNormal);
-    // retInfo.normalShading = normalize(retInfo.tbn * retInfo.normalShading);
+    retInfo.normalShading = normalize(retInfo.tbn * retInfo.normalShading);
+    // retInfo.normalShading = iterpolatedNormal;
     return retInfo;
+}
+
+fn storeGBuffer(idx: u32, baseColor: vec3f, metallicRoughness: vec2f) {
+    // {f16(baseColor.xy)} {f16(baseColor.z)f8(metallicRoughness.xy)}
+    let result = vec2u(pack2x16unorm(baseColor.xy), pack2x16unorm(vec2f(baseColor.z, 0)) | pack4x8unorm(vec4f(0., 0., metallicRoughness)));
+    gBuffer[idx] = result;
+}
+
+fn loadGBuffer(idx: u32, baseColor: ptr<function,vec3f>, metallicRoughness: ptr<function,vec2f>) {
+    let result = gBuffer[idx];
+    (*baseColor) = vec3f(unpack2x16unorm(result.x), unpack2x16unorm(result.y).x);
+    (*metallicRoughness) = unpack4x8unorm(result.y).zw;
 }

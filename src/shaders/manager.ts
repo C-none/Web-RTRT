@@ -6,6 +6,7 @@ import vBuffer from './vBuffer.wgsl?raw';
 
 import light from './tracing/light.wgsl?raw';
 import common from './tracing/common.wgsl?raw';
+import reservoir from './tracing/reservoir.wgsl?raw';
 import trace from './tracing/trace.wgsl?raw';
 import BSDF from './tracing/BSDF.wgsl?raw';
 import rayGen from './tracing/rayGen.wgsl?raw';
@@ -23,6 +24,7 @@ class ShaderManager {
         "compute.position.wgsl": compute,
         "light.wgsl": light,
         "common.wgsl": common,
+        "reservoir.wgsl": reservoir,
         "trace.wgsl": trace,
         "BSDF.wgsl": BSDF,
         "vBuffer.wgsl": vBuffer,

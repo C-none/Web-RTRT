@@ -84,7 +84,7 @@ fn hitAABB(rayInfo: RayInfo, minCorner: vec3f, maxCorner: vec3f) -> bool {
     }
     return true;
 }
-
+var<private> stack: array<u32, TREE_DEPTH>;
 fn traceRay(rayOrigin: vec3f, rayDirection: vec3f) -> RayInfo {
     var rayInfo: RayInfo;
     rayInfo.isHit = 0u;
@@ -94,7 +94,7 @@ fn traceRay(rayOrigin: vec3f, rayDirection: vec3f) -> RayInfo {
     rayInfo.directionInverse = vec3<f32 >(1.0) / rayDirection;
     rayInfo.PrimitiveIndex = 0u;
 
-    var stack: array<u32, TREE_DEPTH> = array<u32, TREE_DEPTH >();
+    // var stack: array<u32, TREE_DEPTH> = array<u32, TREE_DEPTH >();
     var stackCurl: i32 = 0;
     stack[0] = 0u;
 
@@ -134,7 +134,7 @@ fn traceShadowRay(rayOrigin: vec3f, rayDirection: vec3f, lightDistance: f32) -> 
     rayInfo.directionInverse = vec3<f32 >(1.0) / rayDirection;
     rayInfo.PrimitiveIndex = 0u;
 
-    var stack: array<u32, TREE_DEPTH> = array<u32, TREE_DEPTH >();
+    // var stack: array<u32, TREE_DEPTH> = array<u32, TREE_DEPTH >();
     var stackCurl: i32 = 0;
     stack[0] = 0u;
 

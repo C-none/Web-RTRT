@@ -8,24 +8,30 @@ class rayTracing {
     device: webGPUDevice;
     model: gltfmodel;
     camera: CameraManager;
+    lightCount: number = 256;
 
     vBuffer: GPUTexture;
+    gBuffer: GPUBuffer;
     outputTexture: GPUTexture;
     uniformBuffer: GPUBuffer;
     lightBuffer: GPUBuffer;
     sampler: GPUSampler;
 
+    currentReservoir: GPUBuffer;
+    previousReservoir: GPUBuffer;
+
     bindGroupLayout: GPUBindGroupLayout;
+    bindGroupLayoutReservoir: GPUBindGroupLayout;
     bindingGroup: GPUBindGroup;
+    bindingGroupReservoir: GPUBindGroup;
     pipeline: GPUComputePipeline;
-
-
 
     constructor(device: webGPUDevice, model: gltfmodel, cameraManager: CameraManager, buffers: BufferPool) {
         this.device = device;
         this.model = model;
         this.camera = cameraManager;
         this.vBuffer = buffers.vBuffer;
+        this.gBuffer = buffers.gBuffer;
         this.outputTexture = buffers.currentFrameBuffer;
         this.sampler = this.device.device.createSampler({
             addressModeU: "mirror-repeat",
@@ -39,9 +45,11 @@ class rayTracing {
             size: 1 * 4,// random seed(u32)
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
-
+        this.currentReservoir = buffers.currentReservoir;
+        this.previousReservoir = buffers.previousReservoir;
     }
-    private prepareLights(cnt: number = 1) {
+    private prepareLights() {
+        let cnt = this.lightCount;
         class light {
             position: Float32Array;
             color: Float32Array;
@@ -57,27 +65,32 @@ class rayTracing {
             }
         };
         let lights = Array<light>(cnt);
+        const dimension = Math.sqrt(cnt);
         lights[0] = new light(new Float32Array([0, 5, 0]), new Float32Array([1, 1, 1]), 40, 0);
         // lights[1] = new light(new Float32Array([-4, 5, 0]), new Float32Array([0, 1, 1]), 40, 1);
         // generate light in grid
-        // for (let i = 0; i < cnt; i++) {
-        //     let x = (i % 16 - 8) * 1.5;
-        //     let y = 5;
-        //     let z = (Math.floor(i / 16) - 8) * 1.5;
-        //     // let x = Math.random() * 12 - 6;
-        //     // let y = Math.random() * 8;
-        //     // let z = Math.random() * 12 - 6;
-        //     let r = Math.random();
-        //     let g = Math.random();
-        //     let b = Math.random();
-        //     let intensity = Math.random() * 50 + 800;
-        //     lights[i] = new light(new Float32Array([x, y, z]), new Float32Array([r, g, b]), intensity, i);
-        // }
+        for (let i = 0; i < cnt; i++) {
+            // let x = (i % dimension) / dimension * 12 - 6;
+            // let y = 5;
+            // let z = Math.floor(i / dimension) / dimension * 12 - 6;
+            let x = Math.random() * 12 - 6;
+            let y = Math.random() * 8;
+            let z = Math.random() * 12 - 6;
+            let r = Math.random() * 0.7 + 0.3;
+            let g = Math.random() * 0.7 + 0.3;
+            let b = Math.random() * 0.7 + 0.3;
+            // generate color correlated to the position randomly
+            // let r = Math.abs(x) / 6;
+            // let g = 0.5;
+            // let b = Math.abs(z) / 6;
+            let intensity = Math.random() * 1 + 2;
+            lights[i] = new light(new Float32Array([x, y, z]), new Float32Array([r, g, b]), intensity, i);
+        }
 
         this.lightBuffer = this.device.device.createBuffer({
             label: 'light buffer',
             size: 4 * (4 + cnt * (8)), // 1 for light count, 8 for each light
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.UNIFORM,
             mappedAtCreation: true,
         });
         // Vose's Alias Method
@@ -108,12 +121,14 @@ class rayTracing {
                 let small = smallLights.pop();
                 small.prob = 1;
             }
+            return sumIntensity;
         };
-        initAliasTable(lights);
+        let sumIntensity = initAliasTable(lights);
         let ArrayBuffer = this.lightBuffer.getMappedRange();
         let UintArray = new Uint32Array(ArrayBuffer);
         let FloatArray = new Float32Array(ArrayBuffer);
         UintArray[0] = lights.length;
+        FloatArray[1] = sumIntensity;
         for (let i = 0; i < lights.length; i++) {
             let bias = 4 + 8 * i;
             FloatArray.set(lights[i].position, bias);
@@ -191,8 +206,27 @@ class rayTracing {
                 {// light buffer
                     binding: 12,
                     visibility: GPUShaderStage.COMPUTE,
-                    buffer: { type: 'read-only-storage', },
+                    buffer: { type: 'uniform', },
+                },
+                {// gBuffer
+                    binding: 13,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'storage', },
                 }
+            ]
+        });
+        this.bindGroupLayoutReservoir = this.device.device.createBindGroupLayout({
+            entries: [
+                {// current reservoir
+                    binding: 0,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'storage', },
+                },
+                {// previous reservoir
+                    binding: 1,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'read-only-storage', },
+                },
             ]
         });
     }
@@ -269,19 +303,36 @@ class rayTracing {
                 {// light buffer
                     binding: 12,
                     resource: { buffer: this.lightBuffer, },
+                },
+                {// gBuffer
+                    binding: 13,
+                    resource: { buffer: this.gBuffer, },
                 }
+            ]
+        });
+        this.bindingGroupReservoir = this.device.device.createBindGroup({
+            layout: this.bindGroupLayoutReservoir,
+            entries: [
+                {// current reservoir
+                    binding: 0,
+                    resource: { buffer: this.currentReservoir, },
+                },
+                {// previous reservoir
+                    binding: 1,
+                    resource: { buffer: this.previousReservoir, },
+                },
             ]
         });
     }
     private async buildPipeline() {
         const computeShaderModule = this.device.device.createShaderModule({
             label: 'rayGen.wgsl',
-            code: shaders.get("rayGen.wgsl").replace(/TREE_DEPTH/g, this.model.bvhMaxDepth.toString() + 'u'),
+            code: shaders.get("rayGen.wgsl").replace(/TREE_DEPTH/g, this.model.bvhMaxDepth.toString() + 'u').replace(/LIGHT_COUNT/g, this.lightCount.toString()),
         });
 
         this.pipeline = await this.device.device.createComputePipelineAsync({
             layout: this.device.device.createPipelineLayout({
-                bindGroupLayouts: [this.bindGroupLayout],
+                bindGroupLayouts: [this.bindGroupLayout, this.bindGroupLayoutReservoir],
             }),
             compute: {
                 module: computeShaderModule,
@@ -307,6 +358,7 @@ class rayTracing {
         const passEncoder = commandEncoder.beginComputePass();
         passEncoder.setPipeline(this.pipeline);
         passEncoder.setBindGroup(0, this.bindingGroup);
+        passEncoder.setBindGroup(1, this.bindingGroupReservoir);
         passEncoder.dispatchWorkgroups(Math.ceil(this.outputTexture.width / 8), Math.ceil(this.outputTexture.height / 8), 1);
         passEncoder.end();
     }

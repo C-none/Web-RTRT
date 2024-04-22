@@ -276,7 +276,7 @@ class gltfmodel {
     prepareRasterVtxBuffer(device: webGPUDevice): void {
         this.rasterVtxBuffer = device.device.createBuffer({
             label: 'rasterVtxBuffer', size: this.triangleSum * 3 * Float32Array.BYTES_PER_ELEMENT * 3,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.VERTEX,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX,
             mappedAtCreation: true,
         });
         const arrayBuffer = this.rasterVtxBuffer.getMappedRange();
@@ -336,7 +336,7 @@ class gltfmodel {
                 LogOnScreen("bvh building finished");
                 this.bvhBuffer = device.device.createBuffer({
                     label: 'bvhBuffer', size: e.data.byteLength,
-                    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+                    usage: GPUBufferUsage.STORAGE,
                     mappedAtCreation: true,
                 });
                 let dstArrayView = new Uint8Array(this.bvhBuffer.getMappedRange());
@@ -355,12 +355,12 @@ class gltfmodel {
         // allocate buffer
         this.vertexBuffer = device.device.createBuffer({
             label: 'vertexBuffer', size: this.vertexArray.byteLength,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.VERTEX,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX,
             mappedAtCreation: true,
         });
         this.indexBuffer = device.device.createBuffer({
             label: 'indexBuffer', size: this.indexArray.byteLength,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.INDEX,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.INDEX,
             mappedAtCreation: true,
         });
         /*
@@ -376,7 +376,7 @@ class gltfmodel {
         */
         this.geometryBuffer = device.device.createBuffer({
             label: 'geometryBuffer', size: this.vertexSum * 16 * Float32Array.BYTES_PER_ELEMENT,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.VERTEX,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX,
             mappedAtCreation: true,
         });
     }
