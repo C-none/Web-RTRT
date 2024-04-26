@@ -14,6 +14,7 @@ class Display {
     device: webGPUDevice;
     vBuffer: GPUTexture;
     depthTexture: GPUTexture;
+    previousDisplayBuffer: GPUTexture;
     currentFrameBuffer: GPUTexture;
     previousFrameBuffer: GPUTexture;
     sampler: GPUSampler;
@@ -22,6 +23,7 @@ class Display {
         this.device = device;
         this.vBuffer = buffers.vBuffer;
         this.depthTexture = buffers.depthTexture;
+        this.previousDisplayBuffer = buffers.previousDisplayBuffer;
         this.currentFrameBuffer = buffers.currentFrameBuffer;
         this.previousFrameBuffer = buffers.previousFrameBuffer;
         this.displayBindGroupLayout = device.device.createBindGroupLayout({
@@ -37,44 +39,49 @@ class Display {
                 {
                     binding: 1,
                     visibility: GPUShaderStage.COMPUTE,
-                    sampler: {}
+                    texture: {},
                 },
                 {
                     binding: 2,
                     visibility: GPUShaderStage.COMPUTE,
-                    texture: { sampleType: 'uint', },
+                    sampler: {}
                 },
                 {
                     binding: 3,
                     visibility: GPUShaderStage.COMPUTE,
-                    texture: { sampleType: 'depth', }
+                    texture: { sampleType: 'uint', },
                 },
                 {
                     binding: 4,
                     visibility: GPUShaderStage.COMPUTE,
-                    texture: { sampleType: 'float', }
+                    texture: { sampleType: 'depth', }
                 },
                 {
                     binding: 5,
+                    visibility: GPUShaderStage.COMPUTE,
+                    texture: { sampleType: 'float', }
+                },
+                {
+                    binding: 6,
                     visibility: GPUShaderStage.COMPUTE,
                     texture: { sampleType: 'float', }
                 }
             ],
         });
         this.sampler = device.device.createSampler({
-            addressModeU: "repeat",
-            addressModeV: "repeat",
+            addressModeU: "clamp-to-edge",
+            addressModeV: "clamp-to-edge",
             magFilter: "nearest",
             minFilter: "nearest",
-            mipmapFilter: "nearest",
         });
         this.bindGroupEntries = [
             { binding: 0, resource: this.device.context.getCurrentTexture().createView(), },
-            { binding: 1, resource: this.sampler, },
-            { binding: 2, resource: this.vBuffer.createView(), },
-            { binding: 3, resource: this.depthTexture.createView(), },
-            { binding: 4, resource: this.currentFrameBuffer.createView(), },
-            { binding: 5, resource: this.previousFrameBuffer.createView(), },
+            { binding: 1, resource: this.previousDisplayBuffer.createView(), },
+            { binding: 2, resource: this.sampler, },
+            { binding: 3, resource: this.vBuffer.createView(), },
+            { binding: 4, resource: this.depthTexture.createView(), },
+            { binding: 5, resource: this.currentFrameBuffer.createView(), },
+            { binding: 6, resource: this.previousFrameBuffer.createView(), },
         ]
         this.displayPipelineLayout = device.device.createPipelineLayout({
             bindGroupLayouts: [this.displayBindGroupLayout],

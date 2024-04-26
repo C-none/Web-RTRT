@@ -9,7 +9,7 @@ class rayTracing {
     device: webGPUDevice;
     model: gltfmodel;
     camera: CameraManager;
-    lightCount: number = 256;
+    lightCount: number = 64;
 
     vBuffer: GPUTexture;
     gBuffer: GPUBuffer;
@@ -101,7 +101,7 @@ class rayTracing {
             // let r = Math.abs(x) / 6;
             // let g = 0.5;
             // let b = Math.abs(z) / 6;
-            let intensity = Math.random() * 1 + 2;
+            let intensity = Math.random() * 5 + 10;
             lights[i] = new light(new Float32Array([x, y, z]), new Float32Array([r, g, b]), intensity, i);
         }
 
