@@ -160,6 +160,7 @@ class rayTracing {
     }
     private buildBindGroupLayout() {
         this.bindGroupLayoutInit = this.device.device.createBindGroupLayout({
+            label: 'rayTracingInit',
             entries: [
                 {// output texture
                     binding: 0,
@@ -214,6 +215,7 @@ class rayTracing {
             ]
         });
         this.bindGroupLayoutAccelerationStructure = this.device.device.createBindGroupLayout({
+            label: 'rayTracingAccelerationStructure',
             entries: [
                 {// BVH buffer
                     binding: 0,
@@ -233,6 +235,7 @@ class rayTracing {
             ]
         });
         this.bindGroupLayoutReservoir = this.device.device.createBindGroupLayout({
+            label: 'rayTracingReservoir',
             entries: [
                 {// current reservoir
                     binding: 0,
@@ -247,6 +250,7 @@ class rayTracing {
             ]
         });
         this.bindGroupLayoutLight = this.device.device.createBindGroupLayout({
+            label: 'rayTracingLight',
             entries: [
                 {// light buffer
                     binding: 0,
@@ -255,6 +259,7 @@ class rayTracing {
                 },]
         });
         this.bindGroupLayoutReuse = this.device.device.createBindGroupLayout({
+            label: 'rayTracingSpatialReuse',
             entries: [
                 {// output texture
                     binding: 0,
@@ -274,6 +279,7 @@ class rayTracing {
             ]
         });
         this.bindGroupLayoutAccumulate = this.device.device.createBindGroupLayout({
+            label: 'rayTracingAccumulate',
             entries: [
                 {// output texture
                     binding: 0,
@@ -295,6 +301,7 @@ class rayTracing {
     }
     private buildBindGroup() {
         this.bindingGroupInit = this.device.device.createBindGroup({
+            label: 'rayTracingInit',
             layout: this.bindGroupLayoutInit,
             entries: [
                 {// output texture
@@ -358,6 +365,7 @@ class rayTracing {
             ]
         });
         this.bindingGroupAccelerationStructure = this.device.device.createBindGroup({
+            label: 'rayTracingAccelerationStructure',
             layout: this.bindGroupLayoutAccelerationStructure,
             entries: [
                 {// BVH buffer
@@ -375,6 +383,7 @@ class rayTracing {
             ]
         });
         this.bindingGroupReservoir = this.device.device.createBindGroup({
+            label: 'rayTracingReservoir',
             layout: this.bindGroupLayoutReservoir,
             entries: [
                 {// current reservoir
@@ -388,6 +397,7 @@ class rayTracing {
             ]
         });
         this.bindingGroupLight = this.device.device.createBindGroup({
+            label: 'rayTracingLight',
             layout: this.bindGroupLayoutLight,
             entries: [
                 {// light buffer
@@ -397,6 +407,7 @@ class rayTracing {
             ]
         });
         this.bindingGroupReuse = this.device.device.createBindGroup({
+            label: 'rayTracingSpatialReuse',
             layout: this.bindGroupLayoutReuse,
             entries: [
                 {// output texture
@@ -414,6 +425,7 @@ class rayTracing {
             ]
         });
         this.bindingGroupReservoirInverse = this.device.device.createBindGroup({
+            label: 'rayTracingReservoirInverse',
             layout: this.bindGroupLayoutReservoir,
             entries: [
                 {// current reservoir
