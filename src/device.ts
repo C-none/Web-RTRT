@@ -38,7 +38,7 @@ class webGPUDevice {
         canvas.height = canvas.clientHeight * devicePixelRatio;
         this.context.configure({
             device: this.device, format: this.format, alphaMode: 'opaque',
-            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
+            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_SRC,
         });
         return this;
     }

@@ -3,8 +3,8 @@ import { webGPUDevice } from "./device";
 class BufferPool {
     currentFrameBuffer: GPUTexture;
     previousFrameBuffer: GPUTexture;
+    previousDisplayBuffer: GPUTexture;
     depthTexture: GPUTexture;
-    depthTexturePrev: GPUTexture;
     vBuffer: GPUTexture;
 
     gBuffer: GPUBuffer;
@@ -21,6 +21,11 @@ class BufferPool {
         this.previousFrameBuffer = device.device.createTexture({
             size: { width: originWidth, height: originHeight, },
             format: 'rgba16float', dimension: '2d',
+            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+        });
+        this.previousDisplayBuffer = device.device.createTexture({
+            size: { width: device.canvas.width, height: device.canvas.height, },
+            format: device.format, dimension: '2d',
             usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
         });
         this.depthTexture = device.device.createTexture({
@@ -56,7 +61,7 @@ class BufferPool {
 
         encode.copyTextureToTexture({ texture: this.currentFrameBuffer, }, { texture: this.previousFrameBuffer, }, { width: originWidth, height: originHeight });
         encode.copyBufferToBuffer(this.currentReservoir, 0, this.previousReservoir, 0, 16 * 4 * originWidth * originHeight);
-
+        encode.copyTextureToTexture({ texture: device.context.getCurrentTexture(), }, { texture: this.previousDisplayBuffer, }, { width: device.canvas.width, height: device.canvas.height });
     }
 }
 

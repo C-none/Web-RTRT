@@ -3,6 +3,7 @@ import { webGPUDevice } from "./device";
 import { CameraManager } from "./camera";
 import { BufferPool } from "./screenBuffer";
 import { shaders } from "./shaders/manager";
+import { arrayBuffer } from "stream/consumers";
 
 class rayTracing {
     device: webGPUDevice;
@@ -20,11 +21,28 @@ class rayTracing {
     currentReservoir: GPUBuffer;
     previousReservoir: GPUBuffer;
 
-    bindGroupLayout: GPUBindGroupLayout;
+    bindGroupLayoutInit: GPUBindGroupLayout;
+    bindingGroupInit: GPUBindGroup;
+
+    bindGroupLayoutReuse: GPUBindGroupLayout;
+    bindingGroupReuse: GPUBindGroup;
+
+    bindGroupLayoutAccumulate: GPUBindGroupLayout;
+    bindingGroupAccumulate: GPUBindGroup;
+
+    bindGroupLayoutAccelerationStructure: GPUBindGroupLayout;
+    bindingGroupAccelerationStructure: GPUBindGroup;
+
     bindGroupLayoutReservoir: GPUBindGroupLayout;
-    bindingGroup: GPUBindGroup;
     bindingGroupReservoir: GPUBindGroup;
-    pipeline: GPUComputePipeline;
+    bindingGroupReservoirInverse: GPUBindGroup;
+
+    bindGroupLayoutLight: GPUBindGroupLayout;
+    bindingGroupLight: GPUBindGroup;
+
+    pipelineInit: GPUComputePipeline;
+    pipelineReuse: GPUComputePipeline;
+    pipelineAccumulate: GPUComputePipeline;
 
     constructor(device: webGPUDevice, model: gltfmodel, cameraManager: CameraManager, buffers: BufferPool) {
         this.device = device;
@@ -42,7 +60,7 @@ class rayTracing {
             // maxAnisotropy: 16,
         });
         this.uniformBuffer = this.device.device.createBuffer({
-            size: 1 * 4,// random seed(u32)
+            size: 4 * 4,// random seed(u32), origin.xyz(f32)
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
         this.currentReservoir = buffers.currentReservoir;
@@ -66,7 +84,7 @@ class rayTracing {
         };
         let lights = Array<light>(cnt);
         const dimension = Math.sqrt(cnt);
-        lights[0] = new light(new Float32Array([0, 5, 0]), new Float32Array([1, 1, 1]), 40, 0);
+        // lights[0] = new light(new Float32Array([0, 5, 0]), new Float32Array([1, 1, 1]), 40, 0);
         // lights[1] = new light(new Float32Array([-4, 5, 0]), new Float32Array([0, 1, 1]), 40, 1);
         // generate light in grid
         for (let i = 0; i < cnt; i++) {
@@ -141,7 +159,7 @@ class rayTracing {
         this.lightBuffer.unmap();
     }
     private buildBindGroupLayout() {
-        this.bindGroupLayout = this.device.device.createBindGroupLayout({
+        this.bindGroupLayoutInit = this.device.device.createBindGroupLayout({
             entries: [
                 {// output texture
                     binding: 0,
@@ -153,66 +171,65 @@ class rayTracing {
                     visibility: GPUShaderStage.COMPUTE,
                     buffer: { type: 'uniform', },
                 },
-                {// BVH buffer
+                {// geometry buffer
                     binding: 2,
                     visibility: GPUShaderStage.COMPUTE,
                     buffer: { type: 'read-only-storage', },
                 },
-                {// vertex buffer
-                    binding: 3,
-                    visibility: GPUShaderStage.COMPUTE,
-                    buffer: { type: 'read-only-storage', },
-                },
-                {// index buffer
-                    binding: 4,
-                    visibility: GPUShaderStage.COMPUTE,
-                    buffer: { type: 'read-only-storage', },
-                },
-                {// geometry buffer
-                    binding: 5,
-                    visibility: GPUShaderStage.COMPUTE,
-                    buffer: { type: 'read-only-storage', },
-                },
                 {// albedo map
-                    binding: 6,
+                    binding: 3,
                     visibility: GPUShaderStage.COMPUTE,
                     texture: { sampleType: "float", viewDimension: "2d-array", }
                 },
                 {// normal map
-                    binding: 7,
+                    binding: 4,
                     visibility: GPUShaderStage.COMPUTE,
                     texture: { sampleType: "float", viewDimension: "2d-array", }
                 },
                 {// specularRoughness map
-                    binding: 8,
+                    binding: 5,
                     visibility: GPUShaderStage.COMPUTE,
                     texture: { sampleType: "float", viewDimension: "2d-array", }
                 },
                 {// visibility buffer
-                    binding: 9,
+                    binding: 6,
                     visibility: GPUShaderStage.COMPUTE,
-                    texture: { sampleType: 'uint', viewDimension: "2d", },
+                    texture: { sampleType: 'uint', },
                 },
                 {// sampler
-                    binding: 10,
+                    binding: 7,
                     visibility: GPUShaderStage.COMPUTE,
                     sampler: { type: 'filtering', },
                 },
                 {// uniform buffer
-                    binding: 11,
-                    visibility: GPUShaderStage.COMPUTE,
-                    buffer: { type: 'uniform', },
-                },
-                {// light buffer
-                    binding: 12,
+                    binding: 8,
                     visibility: GPUShaderStage.COMPUTE,
                     buffer: { type: 'uniform', },
                 },
                 {// gBuffer
-                    binding: 13,
+                    binding: 9,
                     visibility: GPUShaderStage.COMPUTE,
                     buffer: { type: 'storage', },
                 }
+            ]
+        });
+        this.bindGroupLayoutAccelerationStructure = this.device.device.createBindGroupLayout({
+            entries: [
+                {// BVH buffer
+                    binding: 0,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'read-only-storage', },
+                },
+                {// vertex buffer
+                    binding: 1,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'read-only-storage', },
+                },
+                {// index buffer
+                    binding: 2,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'read-only-storage', },
+                },
             ]
         });
         this.bindGroupLayoutReservoir = this.device.device.createBindGroupLayout({
@@ -229,10 +246,56 @@ class rayTracing {
                 },
             ]
         });
+        this.bindGroupLayoutLight = this.device.device.createBindGroupLayout({
+            entries: [
+                {// light buffer
+                    binding: 0,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'uniform', },
+                },]
+        });
+        this.bindGroupLayoutReuse = this.device.device.createBindGroupLayout({
+            entries: [
+                {// output texture
+                    binding: 0,
+                    visibility: GPUShaderStage.COMPUTE,
+                    storageTexture: { access: 'write-only', format: this.outputTexture.format, },
+                },
+                {// uniform buffer
+                    binding: 1,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'uniform', },
+                },
+                {// gBuffer
+                    binding: 2,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'read-only-storage', },
+                }
+            ]
+        });
+        this.bindGroupLayoutAccumulate = this.device.device.createBindGroupLayout({
+            entries: [
+                {// output texture
+                    binding: 0,
+                    visibility: GPUShaderStage.COMPUTE,
+                    storageTexture: { access: 'write-only', format: this.outputTexture.format, },
+                },
+                {// uniform buffer
+                    binding: 1,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'uniform', },
+                },
+                {// gBuffer
+                    binding: 2,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'read-only-storage', },
+                }
+            ]
+        });
     }
     private buildBindGroup() {
-        this.bindingGroup = this.device.device.createBindGroup({
-            layout: this.bindGroupLayout,
+        this.bindingGroupInit = this.device.device.createBindGroup({
+            layout: this.bindGroupLayoutInit,
             entries: [
                 {// output texture
                     binding: 0,
@@ -242,24 +305,12 @@ class rayTracing {
                     binding: 1,
                     resource: { buffer: this.camera.cameraBuffer, },
                 },
-                {// BVH buffer
-                    binding: 2,
-                    resource: { buffer: this.model.bvhBuffer, },
-                },
-                {// vertex buffer
-                    binding: 3,
-                    resource: { buffer: this.model.vertexBuffer, },
-                },
-                {// index buffer
-                    binding: 4,
-                    resource: { buffer: this.model.indexBuffer, },
-                },
                 {// geometry buffer
-                    binding: 5,
+                    binding: 2,
                     resource: { buffer: this.model.geometryBuffer, },
                 },
                 {// albedo map
-                    binding: 6,
+                    binding: 3,
                     resource: this.model.albedo.texture.createView(
                         {
                             dimension: '2d-array',
@@ -269,7 +320,7 @@ class rayTracing {
                     ),
                 },
                 {// normal map
-                    binding: 7,
+                    binding: 4,
                     resource: this.model.normalMap.texture.createView(
                         {
                             dimension: '2d-array',
@@ -279,7 +330,7 @@ class rayTracing {
                     ),
                 },
                 {// specularRoughness map
-                    binding: 8,
+                    binding: 5,
                     resource: this.model.specularRoughnessMap.texture.createView(
                         {
                             dimension: '2d-array',
@@ -289,25 +340,38 @@ class rayTracing {
                     ),
                 },
                 {// visibility buffer
-                    binding: 9,
+                    binding: 6,
                     resource: this.vBuffer.createView(),
                 },
                 {// sampler
-                    binding: 10,
+                    binding: 7,
                     resource: this.sampler,
                 },
                 {// uniform buffer
-                    binding: 11,
+                    binding: 8,
                     resource: { buffer: this.uniformBuffer, },
                 },
-                {// light buffer
-                    binding: 12,
-                    resource: { buffer: this.lightBuffer, },
-                },
                 {// gBuffer
-                    binding: 13,
+                    binding: 9,
                     resource: { buffer: this.gBuffer, },
                 }
+            ]
+        });
+        this.bindingGroupAccelerationStructure = this.device.device.createBindGroup({
+            layout: this.bindGroupLayoutAccelerationStructure,
+            entries: [
+                {// BVH buffer
+                    binding: 0,
+                    resource: { buffer: this.model.bvhBuffer, },
+                },
+                {// vertex buffer
+                    binding: 1,
+                    resource: { buffer: this.model.vertexBuffer, },
+                },
+                {// index buffer
+                    binding: 2,
+                    resource: { buffer: this.model.indexBuffer, },
+                },
             ]
         });
         this.bindingGroupReservoir = this.device.device.createBindGroup({
@@ -323,23 +387,87 @@ class rayTracing {
                 },
             ]
         });
+        this.bindingGroupLight = this.device.device.createBindGroup({
+            layout: this.bindGroupLayoutLight,
+            entries: [
+                {// light buffer
+                    binding: 0,
+                    resource: { buffer: this.lightBuffer, },
+                },
+            ]
+        });
+        this.bindingGroupReuse = this.device.device.createBindGroup({
+            layout: this.bindGroupLayoutReuse,
+            entries: [
+                {// output texture
+                    binding: 0,
+                    resource: this.outputTexture.createView(),
+                },
+                {// uniform buffer
+                    binding: 1,
+                    resource: { buffer: this.uniformBuffer, },
+                },
+                {// gBuffer
+                    binding: 2,
+                    resource: { buffer: this.gBuffer, },
+                }
+            ]
+        });
+        this.bindingGroupReservoirInverse = this.device.device.createBindGroup({
+            layout: this.bindGroupLayoutReservoir,
+            entries: [
+                {// current reservoir
+                    binding: 0,
+                    resource: { buffer: this.previousReservoir, },
+                },
+                {// previous reservoir
+                    binding: 1,
+                    resource: { buffer: this.currentReservoir, },
+                },
+            ]
+        });
     }
     private async buildPipeline() {
-        const computeShaderModule = this.device.device.createShaderModule({
+        const sampleInitModule = this.device.device.createShaderModule({
             label: 'rayGen.wgsl',
-            code: shaders.get("rayGen.wgsl").replace(/TREE_DEPTH/g, this.model.bvhMaxDepth.toString() + 'u').replace(/LIGHT_COUNT/g, this.lightCount.toString()),
+            code: shaders.get("rayGen.wgsl").replace(/TREE_DEPTH/g, this.model.bvhMaxDepth.toString()).replace(/LIGHT_COUNT/g, this.lightCount.toString()),
         });
-
-        this.pipeline = await this.device.device.createComputePipelineAsync({
+        const spatialReuseModule = this.device.device.createShaderModule({
+            label: 'spatialReuse.wgsl',
+            code: shaders.get("spatialReuse.wgsl").replace(/TREE_DEPTH/g, this.model.bvhMaxDepth.toString()).replace(/LIGHT_COUNT/g, this.lightCount.toString()),
+        });
+        const accumulateModule = this.device.device.createShaderModule({
+            label: 'accumulate.wgsl',
+            code: shaders.get("accumulate.wgsl").replace(/TREE_DEPTH/g, this.model.bvhMaxDepth.toString()).replace(/LIGHT_COUNT/g, this.lightCount.toString()),
+        });
+        this.pipelineInit = await this.device.device.createComputePipelineAsync({
             layout: this.device.device.createPipelineLayout({
-                bindGroupLayouts: [this.bindGroupLayout, this.bindGroupLayoutReservoir],
+                bindGroupLayouts: [this.bindGroupLayoutInit, this.bindGroupLayoutAccelerationStructure, this.bindGroupLayoutReservoir, this.bindGroupLayoutLight],
             }),
             compute: {
-                module: computeShaderModule,
+                module: sampleInitModule,
                 entryPoint: 'main',
                 constants: {
                     halfConeAngle: this.camera.camera.fov * Math.PI / 180 / (this.device.canvas.height / this.device.upscaleRatio * 2),
                 }
+            }
+        });
+        this.pipelineReuse = await this.device.device.createComputePipelineAsync({
+            layout: this.device.device.createPipelineLayout({
+                bindGroupLayouts: [this.bindGroupLayoutReuse, this.bindGroupLayoutAccelerationStructure, this.bindGroupLayoutReservoir, this.bindGroupLayoutLight],
+            }),
+            compute: {
+                module: spatialReuseModule,
+                entryPoint: 'main',
+            }
+        });
+        this.pipelineAccumulate = await this.device.device.createComputePipelineAsync({
+            layout: this.device.device.createPipelineLayout({
+                bindGroupLayouts: [this.bindGroupLayoutInit, this.bindGroupLayoutAccelerationStructure, this.bindGroupLayoutReservoir, this.bindGroupLayoutLight],
+            }),
+            compute: {
+                module: accumulateModule,
+                entryPoint: 'main',
             }
         });
     }
@@ -350,17 +478,33 @@ class rayTracing {
         await this.buildPipeline();
     }
     updateUBO() {
-        let uboArray = new Uint32Array([Math.floor(Math.random() * 0x100000000)]);
-        this.device.device.queue.writeBuffer(this.uniformBuffer, 0, uboArray.buffer);
+        let uboBuffer = new ArrayBuffer(4 * 4);
+        let uboUint = new Uint32Array(uboBuffer);
+        let uboFloat = new Float32Array(uboBuffer);
+        uboUint[3] = Math.floor(Math.random() * 0x100000000);
+        uboFloat.set(this.camera.camera.position.toArray(), 0);
+        this.device.device.queue.writeBuffer(this.uniformBuffer, 0, uboBuffer);
     }
     async record(commandEncoder: GPUCommandEncoder) {
         this.updateUBO();
-        const passEncoder = commandEncoder.beginComputePass();
-        passEncoder.setPipeline(this.pipeline);
-        passEncoder.setBindGroup(0, this.bindingGroup);
-        passEncoder.setBindGroup(1, this.bindingGroupReservoir);
-        passEncoder.dispatchWorkgroups(Math.ceil(this.outputTexture.width / 8), Math.ceil(this.outputTexture.height / 8), 1);
-        passEncoder.end();
+
+        const sampleInitEncoder = commandEncoder.beginComputePass();
+        sampleInitEncoder.setPipeline(this.pipelineInit);
+        sampleInitEncoder.setBindGroup(0, this.bindingGroupInit);
+        sampleInitEncoder.setBindGroup(1, this.bindingGroupAccelerationStructure);
+        sampleInitEncoder.setBindGroup(2, this.bindingGroupReservoir);
+        sampleInitEncoder.setBindGroup(3, this.bindingGroupLight);
+        sampleInitEncoder.dispatchWorkgroups(Math.ceil(this.outputTexture.width / 8), Math.ceil(this.outputTexture.height / 8), 1);
+        sampleInitEncoder.end();
+
+        const spatialReuseEncoder = commandEncoder.beginComputePass();
+        spatialReuseEncoder.setPipeline(this.pipelineReuse);
+        spatialReuseEncoder.setBindGroup(0, this.bindingGroupReuse);
+        spatialReuseEncoder.setBindGroup(1, this.bindingGroupAccelerationStructure);
+        spatialReuseEncoder.setBindGroup(2, this.bindingGroupReservoirInverse);
+        spatialReuseEncoder.setBindGroup(3, this.bindingGroupLight);
+        spatialReuseEncoder.dispatchWorkgroups(Math.ceil(this.outputTexture.width / 8), Math.ceil(this.outputTexture.height / 8), 1);
+        spatialReuseEncoder.end();
     }
 }
 

@@ -6,11 +6,14 @@ import vBuffer from './vBuffer.wgsl?raw';
 
 import light from './tracing/light.wgsl?raw';
 import common from './tracing/common.wgsl?raw';
+import sampleInit from './tracing/sampleInit.wgsl?raw';
 import reservoir from './tracing/reservoir.wgsl?raw';
 import trace from './tracing/trace.wgsl?raw';
 import BSDF from './tracing/BSDF.wgsl?raw';
 import rayGen from './tracing/rayGen.wgsl?raw';
 import slopeAABBTest from './tracing/slopeAABBTest.wgsl?raw';
+import spatialReuse from './tracing/spatialReuse.wgsl?raw';
+import accumulate from './tracing/accumulate.wgsl?raw';
 
 import display from './display.wgsl?raw';
 
@@ -24,6 +27,7 @@ class ShaderManager {
         "compute.position.wgsl": compute,
         "light.wgsl": light,
         "common.wgsl": common,
+        "sampleInit.wgsl": sampleInit,
         "reservoir.wgsl": reservoir,
         "trace.wgsl": trace,
         "BSDF.wgsl": BSDF,
@@ -31,6 +35,8 @@ class ShaderManager {
         "rayGen.wgsl": rayGen,
         "display.wgsl": display,
         "slopeAABBTest.wgsl": slopeAABBTest,
+        "spatialReuse.wgsl": spatialReuse,
+        "accumulate.wgsl": accumulate,
     }
     constructor() {
         for (const name in this.shaders) {

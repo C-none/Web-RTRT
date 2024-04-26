@@ -18,8 +18,8 @@ struct ReservoirGI {
     Lo: vec3f,
 }
 
-@group(1) @binding(0) var<storage, read_write> currentReservoir: array<array<u32,16>>;
-@group(1) @binding(1) var<storage, read> previousReservoir: array<array<u32,16>>;
+@group(2) @binding(0) var<storage, read_write> currentReservoir: array<array<u32,16>>;
+@group(2) @binding(1) var<storage, read> previousReservoir: array<array<u32,16>>;
 
 fn normalEncode(normal: vec3f) -> u32 {
     // Stereographic projection
