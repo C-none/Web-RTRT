@@ -19,6 +19,7 @@ class webGPUDevice {
         const supFeature = this.adapter.features.has('bgra8unorm-storage');
         let _de = await this.adapter.requestDevice({
             requiredLimits: {
+                maxBufferSize: this.adapter.limits.maxBufferSize,
                 maxStorageBufferBindingSize: this.adapter.limits.maxStorageBufferBindingSize,
                 maxStorageBuffersPerShaderStage: this.adapter.limits.maxStorageBuffersPerShaderStage,
 
