@@ -8,6 +8,7 @@
 // #include <light.wgsl>;
 // #include <BSDF.wgsl>;
 
+override ENABLE_GI: bool = true;
 
 @compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
@@ -22,26 +23,19 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     var reservoirDI = ReservoirDI();
     var reservoirGI = ReservoirGI();
 
-    loadReservoir(&previousReservoir, launchIndex, &reservoirDI, &reservoirGI);
+    var _seed: u32;
+    loadReservoir(&previousReservoir, launchIndex, &reservoirDI, &reservoirGI, &_seed);
 
-    if reservoirDI.w_sum == 0. {
+    if reservoirDI.W < 0.0 {
         textureStore(frame, GlobalInvocationID.xy, vec4f(0.));
-    } else {
-        textureStore(frame, GlobalInvocationID.xy, vec4f(1.));
     }
-
+    seed = tea(GlobalInvocationID.y * screen_size.x + GlobalInvocationID.x, _seed, 4);
     var pointInfo = PointInfo(reservoirGI.xv, reservoirGI.nv, vec3f(0.), mat3x3f(), vec2f(0.));
-        {
-        var baseColor = vec3f(0.);
-        var metallicRoughness = vec2f(0.);
-        loadGBuffer(launchIndex, &baseColor, &metallicRoughness);
-        pointInfo.baseColor = baseColor;
-        pointInfo.metallicRoughness = metallicRoughness;
-    }
+
+    loadGBuffer(launchIndex, &(pointInfo));
 
     var bsdf = vec3f(0.0);
     var geometryTerm = vec3f(1.0);
-    var visiblity = 0.;
     var light = getLight(reservoirDI.lightId);
     let shadingPoint = pointInfo.pos;
     var wi = normalize(origin - shadingPoint);
@@ -49,12 +43,15 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     var dist = length(wo);
     wo = normalize(wo);
     if traceShadowRay(shadingPoint, wo, dist) {
-        visiblity = 0.;
+        reservoirDI.W = 0.;
+        reservoirDI.w_sum = 0.;
     } else {
-        visiblity = 1.;
         bsdf = BSDF(pointInfo, wo, wi);
         geometryTerm = light.color * light.intensity / (dist * dist);
     }
-    color = reservoirDI.W * bsdf * geometryTerm * visiblity;
+    color = reservoirDI.W * bsdf * geometryTerm;
+
+    if ENABLE_GI {
+    }
     textureStore(frame, GlobalInvocationID.xy, vec4f(color, 1.));
 }

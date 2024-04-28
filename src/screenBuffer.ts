@@ -45,7 +45,7 @@ class BufferPool {
         // LightDI,wDI,WDI,MDIGI.xy
         // Xvisible.xyz Nvisible.xy
         // Xsample.xyz Nsample.xy
-        // wGI,WGI, Lo.xy, Lo.zw
+        // wGI,WGI, Lo.xy, (Lo.z,seed)
         this.currentReservoir = device.device.createBuffer({
             size: 16 * (4 * originWidth * originHeight),
             usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
@@ -60,7 +60,7 @@ class BufferPool {
         let originHeight = Math.floor(device.canvas.height / device.upscaleRatio);
 
         encode.copyTextureToTexture({ texture: this.currentFrameBuffer, }, { texture: this.previousFrameBuffer, }, { width: originWidth, height: originHeight });
-        encode.copyBufferToBuffer(this.currentReservoir, 0, this.previousReservoir, 0, 16 * 4 * originWidth * originHeight);
+
         encode.copyTextureToTexture({ texture: device.context.getCurrentTexture(), }, { texture: this.previousDisplayBuffer, }, { width: device.canvas.width, height: device.canvas.height });
     }
 }

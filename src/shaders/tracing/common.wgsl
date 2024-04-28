@@ -6,7 +6,7 @@ struct UBO {
     seed: u32,
 };
 
-fn tea(seed0: u32, seed1: u32, loopCount: u32) {
+fn tea(seed0: u32, seed1: u32, loopCount: u32) -> u32 {
     var v0: u32 = seed0;
     var v1: u32 = seed1;
     var s0: u32 = 0;
@@ -15,7 +15,7 @@ fn tea(seed0: u32, seed1: u32, loopCount: u32) {
         v0 += ((v1 << 4) + 0xA341316C) ^ (v1 + s0) ^ ((v1 >> 5) + 0xC8013EA4);
         v1 += ((v0 << 4) + 0xAD90777D) ^ (v0 + s0) ^ ((v0 >> 5) + 0x7E95761E);
     }
-    seed = v0;
+    return v0;
 }
 
 fn lcg() -> u32 {
@@ -36,6 +36,13 @@ fn samplingHemisphere() -> vec4f {
     return vec4f(cos(2.0 * PI * r2) * sq, sin(2.0 * PI * r2) * sq, sqrt(1.0 - r1), sqrt(1.0 - r1) * INVPI);
 }
 
+fn samplingDisk() -> vec2f {
+    let r1 = random();
+    let r2 = random();
+    let sq = sqrt(r1);
+    return vec2f(cos(2.0 * PI * r2) * sq, sin(2.0 * PI * r2) * sq);
+}
+
 struct PointInfo {
     pos: vec3f,
     // normalGeo: vec3f,
@@ -45,8 +52,20 @@ struct PointInfo {
     metallicRoughness: vec2f,
 };
 
-fn loadGBuffer(idx: u32, baseColor: ptr<function,vec3f>, metallicRoughness: ptr<function,vec2f>) {
+fn normalEncode(normal: vec3f) -> u32 {
+    // Stereographic projection
+    let XY = vec2f(normal.xy / (1.0 - normal.z));
+    return pack2x16float(XY);
+}
+
+fn normalDecode(encoded: u32) -> vec3f {
+    let XY = unpack2x16float(encoded);
+    let denom = 1.0 + dot(XY, XY);
+    return vec3f(2.0 * XY / denom, (denom - 2.0) / denom);
+}
+
+fn loadGBuffer(idx: u32, pointInfo: ptr<function,PointInfo>) {
     let result = gBuffer[idx];
-    (*baseColor) = vec3f(unpack2x16unorm(result.x), unpack2x16unorm(result.y).x);
-    (*metallicRoughness) = unpack4x8unorm(result.y).zw;
+    (*pointInfo).baseColor = vec3f(unpack2x16unorm(result.x), unpack2x16unorm(result.y).x);
+    (*pointInfo).metallicRoughness = unpack4x8unorm(result.y).zw;
 }

@@ -64,16 +64,22 @@ fn unpackTriangle(triangle: PrimaryHitInfo, origin: vec3f, direction: vec3f, hal
     // fix normal orientation
     var iterpolatedNormal = normalize(triangle.baryCoord.x * geo[0].normal.xyz + triangle.baryCoord.y * geo[1].normal.xyz + triangle.baryCoord.z * geo[2].normal.xyz);
     var tangent = triangle.baryCoord.x * geo[0].tangent + triangle.baryCoord.y * geo[1].tangent + triangle.baryCoord.z * geo[2].tangent;
+    if dot(normalGeo, iterpolatedNormal) < 0.0 {
+        normalGeo = -normalGeo;
+    }
     if dot(normalGeo, direction) > 0.0 {
-        // normalGeo = -normalGeo;
+        normalGeo = -normalGeo;
         iterpolatedNormal = -iterpolatedNormal;
         tangent = -tangent;
     }
     // compute normal shading
-    let T = normalize(tangent.xyz);
-    let B = normalize(cross(iterpolatedNormal, T) * tangent.w);
+    var T = normalize(tangent.xyz);
+    var B = normalize(cross(iterpolatedNormal, T) * tangent.w);
     retInfo.tbn = mat3x3f(T, B, iterpolatedNormal);
     retInfo.normalShading = normalize(retInfo.tbn * retInfo.normalShading);
-    // retInfo.normalShading = iterpolatedNormal;
+    // retInfo.normalShading = normalGeo;
+    B = normalize(cross(normalGeo, T) * tangent.w);
+    T = normalize(cross(B, normalGeo) * tangent.w);
+    retInfo.tbn = mat3x3f(T, B, normalGeo);
     return retInfo;
 }

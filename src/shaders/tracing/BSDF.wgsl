@@ -12,14 +12,14 @@ fn Fdiffuse(baseColor: vec3f, roughness: f32, ndoti: f32, ndoto: f32, hdoto: f32
     let FD90 = 0.5 + 2. * roughness * hdoto * hdoto;
     let FDwi = mix(1., FD90, pow5(1. - ndoti));
     let FDwo = mix(1., FD90, pow5(1. - ndoto));
-    return baseColor * INVPI * FDwi * ndoto;
+    return baseColor * INVPI * FDwi * FDwo * ndoto;
 }
 
 fn FdiffuseLuminance(baseColorLuminance: f32, roughness: f32, ndoti: f32, ndoto: f32, hdoto: f32) -> f32 {
     let FD90 = 0.5 + 2. * roughness * hdoto * hdoto;
     let FDwi = mix(1., FD90, pow5(1. - ndoti));
     let FDwo = mix(1., FD90, pow5(1. - ndoto));
-    return baseColorLuminance * INVPI * FDwi * ndoto;
+    return baseColorLuminance * INVPI * FDwi * FDwo * ndoto;
 }
 
 fn SmithGGX(ndoti: f32, ndoti2: f32, alpha2: f32) -> f32 {
@@ -58,10 +58,10 @@ fn FmetallicLuminance(baseColorLuminance: f32, roughness: f32, ndoth: f32, h: ve
 
 fn BSDF(shadingPoint: PointInfo, wo: vec3f, wi: vec3f) -> vec3f {
     let h = normalize(wi + wo);
-    let ndoti = max(0.0, dot(shadingPoint.normalShading, wi));
-    let ndoto = max(0.0, dot(shadingPoint.normalShading, wo));
+    let ndoti = max(0.000, dot(shadingPoint.normalShading, wi));
+    let ndoto = max(0.000, dot(shadingPoint.normalShading, wo));
     let hdoto = dot(h, wo);
-    let ndoth = max(0.0, dot(shadingPoint.normalShading, h));
+    let ndoth = max(0.000, dot(shadingPoint.normalShading, h));
     let diffuse = Fdiffuse(shadingPoint.baseColor, shadingPoint.metallicRoughness.y, ndoti, ndoto, hdoto);
     let metallic = Fmetallic(shadingPoint.baseColor, shadingPoint.metallicRoughness.y, ndoth, h, hdoto, ndoti, ndoto);
     return (1.0 - shadingPoint.metallicRoughness.x) * diffuse + (shadingPoint.metallicRoughness.x) * metallic;
@@ -69,10 +69,10 @@ fn BSDF(shadingPoint: PointInfo, wo: vec3f, wi: vec3f) -> vec3f {
 
 fn BSDFLuminance(shadingPoint: PointInfo, wo: vec3f, wi: vec3f) -> f32 {
     let h = normalize(wi + wo);
-    let ndoti = max(0.0, dot(shadingPoint.normalShading, wi));
-    let ndoto = max(0.0, dot(shadingPoint.normalShading, wo));
+    let ndoti = max(0.000, dot(shadingPoint.normalShading, wi));
+    let ndoto = max(0.000, dot(shadingPoint.normalShading, wo));
     let hdoto = dot(h, wo);
-    let ndoth = max(0.0, dot(shadingPoint.normalShading, h));
+    let ndoth = max(0.000, dot(shadingPoint.normalShading, h));
     let baseColorLuminance = luminance(shadingPoint.baseColor);
     let diffuse = FdiffuseLuminance(baseColorLuminance, shadingPoint.metallicRoughness.y, ndoti, ndoto, hdoto);
     let metallic = FmetallicLuminance(baseColorLuminance, shadingPoint.metallicRoughness.y, ndoth, h, hdoto, ndoti, ndoto);

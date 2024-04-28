@@ -31,6 +31,7 @@ struct GeometryInfo {
 // #include <BSDF.wgsl>;
 
 override halfConeAngle = 0.0;
+override ENABLE_GI: bool = true;
 
 fn storeGBuffer(idx: u32, baseColor: vec3f, metallicRoughness: vec2f) {
     // {f16(baseColor.xy)} {f16(baseColor.z)f8(metallicRoughness.xy)}
@@ -57,11 +58,12 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     if primaryHit.primId == 0 && all(primaryHit.baryCoord == vec3f(1.0, 0.0, 0.0)) {
         // textureStore(frame, GlobalInvocationID.xy, vec4f(0.));
         reservoirCurDI.W = -1.;
-        storeReservoir(&currentReservoir, launchIndex, reservoirCurDI, reservoirCurGI);
+        storeGBuffer(launchIndex, vec3f(0.), vec2f(0.));
+        storeReservoir(&currentReservoir, launchIndex, reservoirCurDI, reservoirCurGI, ubo.seed);
         return;
     }
 
-    tea(GlobalInvocationID.y * screen_size.x + GlobalInvocationID.x, ubo.seed, 16);
+    seed = tea(GlobalInvocationID.y * screen_size.x + GlobalInvocationID.x, ubo.seed, 16);
     let origin: vec3f = ubo.origin;
     let screen_target: vec2f = vec2f(f32(GlobalInvocationID.x) + 0.5, f32(screen_size.y - GlobalInvocationID.y - 1u) + 0.5) / vec2f(screen_size);
     let screen_target_ndc: vec2f = screen_target * 2.0 - 1.0;
@@ -71,16 +73,12 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
 
 
     let globalPreId = vec2f(GlobalInvocationID.xy) + 0.5 - primaryHit.motionVec;
-    // var preNDC = camera.lastVPMat * vec4f(pointInfo.pos.xyz, 1.0);
-    // preNDC /= preNDC.w;
-    // preNDC.y *= -1.0;
-    // var preScreen = preNDC.xy * 0.5 + 0.5;
-    // let globalPreId = preScreen * vec2f(screen_size);
     let launchPreIndex = select(-1, i32(globalPreId.y) * i32(screen_size.x) + i32(globalPreId.x), all(globalPreId >= vec2f(0.0)) && all(globalPreId < vec2f(screen_size)));
     let shadingPoint: vec3f = pointInfo.pos;
 
     if launchPreIndex >= 0 {
-        loadReservoir(&previousReservoir, u32(launchPreIndex), &reservoirPrevDI, &reservoirPrevGI);
+        var _seed: u32;
+        loadReservoir(&previousReservoir, u32(launchPreIndex), &reservoirPrevDI, &reservoirPrevGI, &_seed);
     }
 
     var geometryTerm_luminance: f32;
@@ -97,6 +95,9 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
         wo = light.position - shadingPoint;
         dist = length(wo);
         wo = normalize(wo);
+        if dot(wo, pointInfo.normalShading) <= 0.0 {
+            continue;
+        }
         geometryTerm_luminance = light.intensity / (dist * dist);
         bsdfLuminance = BSDFLuminance(pointInfo, wo, -direction);
         pHat = bsdfLuminance * geometryTerm_luminance;
@@ -110,33 +111,39 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     wo = normalize(wo);
     if traceShadowRay(shadingPoint, wo, dist) {
         reservoirCurDI.W = 0.0;
+        reservoirCurDI.w_sum = 0.0;
     } else {
         geometryTerm_luminance = light.intensity / (dist * dist);
         bsdfLuminance = BSDFLuminance(pointInfo, wo, -direction);
         pHat = bsdfLuminance * geometryTerm_luminance;
-        reservoirCurDI.W = reservoirCurDI.w_sum / pHat / f32(reservoirCurDI.M);
     }
-    // temperal reuse
+
+    // initial GI candidates
     reservoirCurGI.xv = shadingPoint;
     reservoirCurGI.nv = pointInfo.normalShading;
 
+    if ENABLE_GI {
+        let sampleVec = samplingHemisphere();
+        let wi = normalize(pointInfo.tbn * sampleVec.xyz);
+    }
+    // temperal reuse
     if reservoirPrevDI.W > 0.0 {
-        let diff = reservoirCurGI.xv - reservoirPrevGI.xv;
-        if dot(diff, diff) < 0.05 && dot(reservoirCurGI.nv, reservoirPrevGI.nv) > 0.5 {
-            // color = vec3f(1.0, 0.0, 0.0);
-            const capped = 20u;
-            reservoirCurDI.w_sum = reservoirCurDI.W * pHat * f32(reservoirCurDI.M);
+        let depth = distance(reservoirCurGI.xv, origin);
+        if distance(reservoirCurGI.xv, reservoirPrevGI.xv) < 0.1 * depth && dot(reservoirCurGI.nv, reservoirPrevGI.nv) > 0.9 {
+            const capped = 12u;
             reservoirPrevDI.M = min(reservoirPrevDI.M, capped * reservoirCurDI.M);
             light = getLight(reservoirPrevDI.lightId);
             wo = light.position - shadingPoint;
             dist = length(wo);
             wo = normalize(wo);
-            geometryTerm_luminance = light.intensity / (dist * dist);
-            bsdfLuminance = BSDFLuminance(pointInfo, wo, -direction);
-            pHat = bsdfLuminance * geometryTerm_luminance;
-            reservoirPrevDI.w_sum = pHat * reservoirPrevDI.W * f32(reservoirPrevDI.M);
+            if dot(wo, pointInfo.normalShading) > 0.0 {
+                geometryTerm_luminance = light.intensity / (dist * dist);
+                bsdfLuminance = BSDFLuminance(pointInfo, wo, -direction);
+                pHat = bsdfLuminance * geometryTerm_luminance;
+                reservoirPrevDI.w_sum = pHat * reservoirPrevDI.W * f32(reservoirPrevDI.M);
 
-            combineReservoirsDI(&reservoirCurDI, reservoirPrevDI);
+                combineReservoirsDI(&reservoirCurDI, reservoirPrevDI);
+            }
         }
     }
 
@@ -149,26 +156,13 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
         geometryTerm_luminance = light.intensity / (dist * dist);
         bsdfLuminance = BSDFLuminance(pointInfo, wo, -direction);
         pHat = bsdfLuminance * geometryTerm_luminance;
-        reservoirCurDI.W = reservoirCurDI.w_sum / pHat / f32(reservoirCurDI.M);
+        if pHat > 0.0 {
+            reservoirCurDI.W = reservoirCurDI.w_sum / max(0.001, pHat) / f32(reservoirCurDI.M);
+        } else {
+            reservoirCurDI.W = 0.0;
+            reservoirCurDI.w_sum = 0.0;
+        }
     }
-
-    // shading color
-    // var bsdf = vec3f(0.0);
-    // var geometryTerm = vec3f(1.0);
-    // if traceShadowRay(shadingPoint, wo, dist) {
-    //     reservoirCurDI.W = 0.0;
-    // } else {
-    //     bsdf = BSDF(pointInfo, wo, -direction);
-    //     geometryTerm = light.color * light.intensity / (dist * dist);
-    // }
-    // color = reservoirCurDI.W * bsdf * geometryTerm;
-    // traceShadowRay(shadingPoint, wo, dist);
-    // traceShadowRay(shadingPoint, wo, dist);
-    // traceShadowRay(shadingPoint, wo, dist);
-    // traceShadowRay(shadingPoint, wo, dist);
-    // traceShadowRay(shadingPoint, wo, dist);
-
-    // color = vec4f(pointInfo.baseColor, 1.0);
 
     // random select light
     //     {
@@ -212,6 +206,6 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
 
     storeGBuffer(launchIndex, pointInfo.baseColor, pointInfo.metallicRoughness);
     // write reservoir
-    storeReservoir(&currentReservoir, launchIndex, reservoirCurDI, reservoirCurGI);
+    storeReservoir(&currentReservoir, launchIndex, reservoirCurDI, reservoirCurGI, seed);
     // textureStore(frame, GlobalInvocationID.xy, vec4f(color, 1.));
 }

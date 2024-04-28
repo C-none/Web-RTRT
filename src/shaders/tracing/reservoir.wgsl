@@ -18,26 +18,14 @@ struct ReservoirGI {
     Lo: vec3f,
 }
 
-@group(2) @binding(0) var<storage, read_write> currentReservoir: array<array<u32,16>>;
-@group(2) @binding(1) var<storage, read> previousReservoir: array<array<u32,16>>;
+@group(1) @binding(0) var<storage, read_write> currentReservoir: array<array<u32,16>>;
+@group(1) @binding(1) var<storage, read> previousReservoir: array<array<u32,16>>;
 
-fn normalEncode(normal: vec3f) -> u32 {
-    // Stereographic projection
-    let XY = vec2f(normal.xy / (1.0 - normal.z));
-    return pack2x16float(XY);
-}
-
-fn normalDecode(encoded: u32) -> vec3f {
-    let XY = unpack2x16float(encoded);
-    let denom = 1.0 + dot(XY, XY);
-    return vec3f(2.0 * XY / denom, (denom - 2.0) / denom);
-}
-
-fn loadReservoir(reservoir: ptr<storage,array<array<u32,16>>>, idx: u32, reservoirDI: ptr<function,ReservoirDI>, reservoirGI: ptr<function,ReservoirGI>) {
+fn loadReservoir(reservoir: ptr<storage,array<array<u32,16>>>, idx: u32, reservoirDI: ptr<function,ReservoirDI>, reservoirGI: ptr<function,ReservoirGI>, seed: ptr<function,u32>) {
     // LightDI,wDI,WDI,MDIGI.xy
     // Xvisible.xyz Nvisible.xy
     // Xsample.xyz Nsample.xy
-    // wGI,WGI, Lo.xy, Lo.zw
+    // wGI,WGI, Lo.xy, Lo.z/seed
     let reservoirAll = (*reservoir)[idx];
     (*reservoirDI).lightId = reservoirAll[0];
     (*reservoirDI).w_sum = bitcast<f32>(reservoirAll[1]);
@@ -53,13 +41,14 @@ fn loadReservoir(reservoir: ptr<storage,array<array<u32,16>>>, idx: u32, reservo
     (*reservoirGI).w_sum = bitcast<f32>(reservoirAll[12]);
     (*reservoirGI).W = bitcast<f32>(reservoirAll[13]);
     (*reservoirGI).Lo = vec3f(unpack2x16float(reservoirAll[14]), unpack2x16float(reservoirAll[15]).x);
+    *seed = (reservoirAll[15] & 0xFFFF0000) >> 16;
 }
 
-fn storeReservoir(reservoir: ptr<storage,array<array<u32,16>>,read_write>, idx: u32, reservoirDI: ReservoirDI, reservoirGI: ReservoirGI) {
+fn storeReservoir(reservoir: ptr<storage,array<array<u32,16>>,read_write>, idx: u32, reservoirDI: ReservoirDI, reservoirGI: ReservoirGI, seed: u32) {
     // LightDI,wDI,WDI,MDIGI.xy
     // Xvisible.xyz Nvisible.xy
     // Xsample.xyz Nsample.xy
-    // wGI,WGI, Lo.xy, Lo.zw
+    // wGI,WGI, Lo.xy, Lo.z/seed
     let MAll = vec2u(reservoirDI.M, reservoirGI.M);
     (*reservoir)[idx] = array<u32,16>(
         reservoirDI.lightId,
@@ -77,7 +66,7 @@ fn storeReservoir(reservoir: ptr<storage,array<array<u32,16>>,read_write>, idx: 
         bitcast<u32>(reservoirGI.w_sum),
         bitcast<u32>(reservoirGI.W),
         pack2x16float(reservoirGI.Lo.xy),
-        pack2x16float(vec2f(reservoirGI.Lo.z, 0.0))
+        pack2x16float(vec2f(reservoirGI.Lo.z, 0.0)) | (seed << 16),
     );
 }
 

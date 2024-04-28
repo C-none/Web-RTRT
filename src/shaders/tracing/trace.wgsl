@@ -1,6 +1,6 @@
-@group(1) @binding(0) var<storage, read> bvh : BVH;
-@group(1) @binding(1) var<storage, read> vertices : array<vec4f>;
-@group(1) @binding(2) var<storage, read> indices : array<u32>;
+@group(3) @binding(0) var<storage, read> bvh : BVH;
+@group(3) @binding(1) var<storage, read> vertices : array<vec4f>;
+@group(3) @binding(2) var<storage, read> indices : array<u32>;
 
 struct BVHNode {
     min: vec3<f32 >,

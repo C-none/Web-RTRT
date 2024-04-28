@@ -4,6 +4,8 @@ import compute from './compute.position.wgsl?raw';
 
 import vBuffer from './vBuffer.wgsl?raw';
 
+import lightUpdate from './lightUpdate.wgsl?raw';
+
 import light from './tracing/light.wgsl?raw';
 import common from './tracing/common.wgsl?raw';
 import sampleInit from './tracing/sampleInit.wgsl?raw';
@@ -26,6 +28,7 @@ class ShaderManager {
         "position.frag.wgsl": position,
         "compute.position.wgsl": compute,
         "light.wgsl": light,
+        "lightUpdate.wgsl": lightUpdate,
         "common.wgsl": common,
         "sampleInit.wgsl": sampleInit,
         "reservoir.wgsl": reservoir,

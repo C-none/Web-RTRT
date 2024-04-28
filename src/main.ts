@@ -6,7 +6,6 @@ import { VBuffer } from './vBuffer';
 import { rayTracing } from './raytracing';
 import { LogOnScreen } from './utils';
 import { BufferPool } from './screenBuffer';
-import { func } from 'three/examples/jsm/nodes/Nodes.js';
 
 class Application {
     device: webGPUDevice;
@@ -50,6 +49,7 @@ class Application {
 
         let cmdBuffer = commandEncoder.finish();
         this.device.device.queue.submit([cmdBuffer]);
+
     }
 
     timeStamp = Date.now();
