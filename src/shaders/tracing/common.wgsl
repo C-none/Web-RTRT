@@ -65,7 +65,22 @@ fn normalDecode(encoded: u32) -> vec3f {
 }
 
 fn loadGBuffer(idx: u32, pointInfo: ptr<function,PointInfo>) {
-    let result = gBuffer[idx];
-    (*pointInfo).baseColor = vec3f(unpack2x16unorm(result.x), unpack2x16unorm(result.y).x);
-    (*pointInfo).metallicRoughness = unpack4x8unorm(result.y).zw;
+    let tex = gBufferTex[idx];
+    (*pointInfo).baseColor = vec3f(unpack2x16unorm(tex.x), unpack2x16unorm(tex.y).x);
+    (*pointInfo).metallicRoughness = unpack4x8unorm(tex.y).zw;
+    let attri = gBufferAttri[idx];
+    (*pointInfo).pos = attri.xyz;
+    (*pointInfo).normalShading = normalDecode(bitcast<u32>(attri.w));
+}
+struct PointAttri {
+    pos: vec3f,
+    normalShading: vec3f,
+};
+
+fn loadGBufferAttri(gBufferAttri: ptr<storage,array<vec4f>>, idx: u32) -> PointAttri {
+    let attri = (*gBufferAttri)[idx];
+    var ret: PointAttri;
+    ret.pos = attri.xyz;
+    ret.normalShading = normalDecode(bitcast<u32>(attri.w));
+    return ret;
 }

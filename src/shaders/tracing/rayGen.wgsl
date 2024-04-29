@@ -21,8 +21,9 @@ struct GeometryInfo {
 @group(0) @binding(6) var vBuffer : texture_2d<u32>;
 @group(0) @binding(7) var samp: sampler;
 @group(0) @binding(8) var<uniform> ubo: UBO;
-@group(0) @binding(9) var<storage, read_write> gBuffer : array<vec2u>;
-
+@group(0) @binding(9) var<storage, read_write> gBufferTex : array<vec2u>;
+@group(0) @binding(10) var<storage, read_write> gBufferAttri : array<vec4f>;
+@group(0) @binding(11) var<storage, read> previousGBufferAttri : array<vec4f>;
 // #include <common.wgsl>;
 // #include <trace.wgsl>;
 // #include <sampleInit.wgsl>;
@@ -33,11 +34,7 @@ struct GeometryInfo {
 override halfConeAngle = 0.0;
 override ENABLE_GI: bool = true;
 
-fn storeGBuffer(idx: u32, baseColor: vec3f, metallicRoughness: vec2f) {
-    // {f16(baseColor.xy)} {f16(baseColor.z)f8(metallicRoughness.xy)}
-    let result = vec2u(pack2x16unorm(baseColor.xy), pack2x16unorm(vec2f(baseColor.z, 0)) | pack4x8unorm(vec4f(0., 0., metallicRoughness)));
-    gBuffer[idx] = result;
-}
+
 
 @compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
@@ -48,17 +45,17 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
 
     // var rayInfo: RayInfo = traceRay(origin, direction);
     var color = vec3f(0.0);
-    var primaryHit = primaryHit(GlobalInvocationID.xy);
+    var primaryTri = primaryHit(GlobalInvocationID.xy);
     let launchIndex = GlobalInvocationID.y * screen_size.x + GlobalInvocationID.x;
     var reservoirCurDI = ReservoirDI(0, 0., 0., 0);
     var reservoirCurGI = ReservoirGI(vec3f(0.0), 0.0, vec3f(0.0), 0, vec3f(0.0), 0.0, vec3f(0.0), vec3f(0.0));
     var reservoirPrevDI = ReservoirDI(0, 0., 0., 0);
     var reservoirPrevGI = ReservoirGI(vec3f(0.0), 0.0, vec3f(0.0), 0, vec3f(0.0), 0.0, vec3f(0.0), vec3f(0.0));
 
-    if primaryHit.primId == 0 && all(primaryHit.baryCoord == vec3f(1.0, 0.0, 0.0)) {
+    if primaryTri.primId == 0 && all(primaryTri.baryCoord == vec3f(1.0, 0.0, 0.0)) {
         // textureStore(frame, GlobalInvocationID.xy, vec4f(0.));
         reservoirCurDI.W = -1.;
-        storeGBuffer(launchIndex, vec3f(0.), vec2f(0.));
+        storeGBuffer(launchIndex, vec3f(0), vec3f(0), vec3f(0.), vec2f(0.));
         storeReservoir(&currentReservoir, launchIndex, reservoirCurDI, reservoirCurGI, ubo.seed);
         return;
     }
@@ -69,16 +66,18 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     let screen_target_ndc: vec2f = screen_target * 2.0 - 1.0;
     let screen_target_world: vec4f = camera.projInv * vec4f(screen_target_ndc, 1.0, 1.0);
     let direction = (camera.world * vec4f(normalize(screen_target_world.xyz), 0.0)).xyz;
-    var pointInfo = unpackTriangle(primaryHit, origin, direction, halfConeAngle);
+    var pointInfo = unpackTriangle(primaryTri, origin, direction, halfConeAngle);
+    var pointPrev: PointAttri;
 
 
-    let globalPreId = vec2f(GlobalInvocationID.xy) + 0.5 - primaryHit.motionVec;
+    let globalPreId = vec2f(GlobalInvocationID.xy) + 0.5 - primaryTri.motionVec;
     let launchPreIndex = select(-1, i32(globalPreId.y) * i32(screen_size.x) + i32(globalPreId.x), all(globalPreId >= vec2f(0.0)) && all(globalPreId < vec2f(screen_size)));
     let shadingPoint: vec3f = pointInfo.pos;
 
     if launchPreIndex >= 0 {
         var _seed: u32;
         loadReservoir(&previousReservoir, u32(launchPreIndex), &reservoirPrevDI, &reservoirPrevGI, &_seed);
+        pointPrev = loadGBufferAttri(&previousGBufferAttri, u32(launchPreIndex));
     }
 
     var geometryTerm_luminance: f32;
@@ -89,7 +88,10 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     var wo: vec3f;
     var dist: f32;
 
-    for (var i = 0; i < 16; i = i + 1) {
+    // initial GI candidates
+
+
+    for (var i = 0; i < 24; i = i + 1) {
         light = sampleLight();
         let samplePdf = sampleLightProb(light);
         wo = light.position - shadingPoint;
@@ -118,18 +120,11 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
         pHat = bsdfLuminance * geometryTerm_luminance;
     }
 
-    // initial GI candidates
-    reservoirCurGI.xv = shadingPoint;
-    reservoirCurGI.nv = pointInfo.normalShading;
 
-    if ENABLE_GI {
-        let sampleVec = samplingHemisphere();
-        let wi = normalize(pointInfo.tbn * sampleVec.xyz);
-    }
     // temperal reuse
     if reservoirPrevDI.W > 0.0 {
-        let depth = distance(reservoirCurGI.xv, origin);
-        if distance(reservoirCurGI.xv, reservoirPrevGI.xv) < 0.1 * depth && dot(reservoirCurGI.nv, reservoirPrevGI.nv) > 0.9 {
+        let depth = distance(shadingPoint, origin);
+        if distance(shadingPoint, pointPrev.pos) < 0.1 * depth && dot(pointInfo.normalShading, pointPrev.normalShading) > 0.9 {
             const capped = 12u;
             reservoirPrevDI.M = min(reservoirPrevDI.M, capped * reservoirCurDI.M);
             light = getLight(reservoirPrevDI.lightId);
@@ -163,7 +158,8 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
             reservoirCurDI.w_sum = 0.0;
         }
     }
-
+    // traceShadowRay(shadingPoint, wo, dist);
+    // traceShadowRay(shadingPoint, wo, dist);
     // random select light
     //     {
     //     let light = sampleLight();
@@ -203,8 +199,18 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     //     }
     //     color = color.xyz + bsdf * geometryTerm * visibility;
     // }
+    _ = ENABLE_GI;
+    // if ENABLE_GI {
+    //     let sampleVec: vec4f = samplingHemisphere();
+    //     let wi: vec3f = normalize(pointInfo.tbn * sampleVec.xyz);
+    //     let rayInfo: RayInfo = traceRay(shadingPoint, wi.xyz);
+    //     if rayInfo.isHit == 1 {
+    //         let triangle: PrimaryHitInfo = PrimaryHitInfo(rayInfo.hitAttribute, rayInfo.PrimitiveIndex, vec2f(0));
+    //         let hit = unpackTriangleIndirect(triangle, wi.xyz);
+    //     }
+    // }
 
-    storeGBuffer(launchIndex, pointInfo.baseColor, pointInfo.metallicRoughness);
+    storeGBuffer(launchIndex, pointInfo.pos, pointInfo.normalShading, pointInfo.baseColor, pointInfo.metallicRoughness);
     // write reservoir
     storeReservoir(&currentReservoir, launchIndex, reservoirCurDI, reservoirCurGI, seed);
     // textureStore(frame, GlobalInvocationID.xy, vec4f(color, 1.));

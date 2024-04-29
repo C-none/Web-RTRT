@@ -18,6 +18,30 @@ struct ReservoirGI {
     Lo: vec3f,
 }
 
+fn updateReserVoirGI(reservoir: ptr<function,ReservoirGI>, xv: vec3f, nv: vec3f, xs: vec3f, ns: vec3f, w: f32, Lo: vec3f) {
+    (*reservoir).M += 1;
+    (*reservoir).w_sum += w;
+    if random() < w / (*reservoir).w_sum {
+        (*reservoir).xv = xv;
+        (*reservoir).nv = nv;
+        (*reservoir).xs = xs;
+        (*reservoir).ns = ns;
+        (*reservoir).Lo = Lo;
+    }
+}
+
+fn combineReservoirsGI(reservoir: ptr<function,ReservoirGI>, other: ReservoirGI) {
+    (*reservoir).M += other.M;
+    (*reservoir).w_sum += other.w_sum;
+    if random() < other.w_sum / (*reservoir).w_sum {
+        (*reservoir).xv = other.xv;
+        (*reservoir).nv = other.nv;
+        (*reservoir).xs = other.xs;
+        (*reservoir).ns = other.ns;
+        (*reservoir).Lo = other.Lo;
+    }
+}
+
 @group(1) @binding(0) var<storage, read_write> currentReservoir: array<array<u32,16>>;
 @group(1) @binding(1) var<storage, read> previousReservoir: array<array<u32,16>>;
 

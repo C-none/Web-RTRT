@@ -1,6 +1,8 @@
 @group(0) @binding(0) var frame : texture_storage_2d<rgba16float, write>;
 @group(0) @binding(1) var<uniform> ubo: UBO;
-@group(0) @binding(2) var<storage, read> gBuffer : array<vec2u>;
+@group(0) @binding(2) var<storage, read> gBufferTex : array<vec2u>;
+@group(0) @binding(3) var<storage, read> gBufferAttri : array<vec4f>;
+
 
 // #include <common.wgsl>;
 // #include <reservoir.wgsl>;
@@ -29,7 +31,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
         textureStore(frame, GlobalInvocationID.xy, vec4f(0.));
     }
     seed = tea(GlobalInvocationID.y * screen_size.x + GlobalInvocationID.x, _seed, 4);
-    var pointInfo = PointInfo(reservoirGI.xv, reservoirGI.nv, vec3f(0.), mat3x3f(), vec2f(0.));
+    var pointInfo: PointInfo;
     loadGBuffer(launchIndex, &pointInfo);
 
     var geometryTerm_luminance: f32;
@@ -43,7 +45,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     var dist: f32;
     // const bias2: array<vec2f, 8 > = array<vec2f, 8>(vec2f(-1.0, 1.0), vec2f(0.0, 1.0), vec2f(1.0, 0.0), vec2f(1.0, 1.0), vec2f(-1.0, 0.0), vec2f(0.0, -1.0), vec2f(-1.0, -1.0), vec2f(1.0, -1.0));
     for (var i = 0u; i < 5; i = i + 1u) {
-        let neighbor_pos = screen_pos + samplingDisk() * 20.0;
+        let neighbor_pos = screen_pos + samplingDisk() * 15.0;
         // let neighbor_pos = screen_pos + bias2[i] * 2.;
         if any(neighbor_pos < vec2f(0.0)) || any(neighbor_pos >= vec2f(screen_size)) {
             continue;
@@ -52,24 +54,22 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
         var neighbor_reservoirDI = ReservoirDI();
         var neighbor_reservoirGI = ReservoirGI();
         loadReservoir(&previousReservoir, neighbor_launchIndex, &neighbor_reservoirDI, &neighbor_reservoirGI, &_seed);
+        let neighbour_pointAttri: PointAttri = loadGBufferAttri(&gBufferAttri, neighbor_launchIndex);
         // check distance and normal diff
-        if neighbor_reservoirDI.W <= 0. || distance(shadingPoint, neighbor_reservoirGI.xv) >= 0.1 * depth || dot(pointInfo.normalShading, neighbor_reservoirGI.nv) < .9 {
-            continue;
+        if neighbor_reservoirDI.W > 0. && distance(shadingPoint, neighbour_pointAttri.pos) <= 0.1 * depth && dot(pointInfo.normalShading, neighbour_pointAttri.normalShading) >= .9 {
+            light = getLight(neighbor_reservoirDI.lightId);
+            wo = light.position - pointInfo.pos;
+            dist = length(wo);
+            wo = normalize(wo);
+            if dot(wo, pointInfo.normalShading) > 0. {
+                neighbor_reservoirDI.M = min(neighbor_reservoirDI.M, 256);
+                geometryTerm_luminance = light.intensity / (dist * dist);
+                bsdfLuminance = BSDFLuminance(pointInfo, wo, wi);
+                pHat = geometryTerm_luminance * bsdfLuminance;
+                neighbor_reservoirDI.w_sum = pHat * neighbor_reservoirDI.W * f32(neighbor_reservoirDI.M);
+                combineReservoirsDI(&reservoirDI, neighbor_reservoirDI);
+            }
         }
-
-        light = getLight(neighbor_reservoirDI.lightId);
-        wo = light.position - pointInfo.pos;
-        dist = length(wo);
-        wo = normalize(wo);
-        if dot(wo, pointInfo.normalShading) <= 0. {
-            continue;
-        }
-        neighbor_reservoirDI.M = min(neighbor_reservoirDI.M, 256);
-        geometryTerm_luminance = light.intensity / (dist * dist);
-        bsdfLuminance = BSDFLuminance(pointInfo, wo, wi);
-        pHat = geometryTerm_luminance * bsdfLuminance;
-        neighbor_reservoirDI.w_sum = pHat * neighbor_reservoirDI.W * f32(neighbor_reservoirDI.M);
-        combineReservoirsDI(&reservoirDI, neighbor_reservoirDI);
     }
     // compute Weight
         {

@@ -7,7 +7,9 @@ class BufferPool {
     depthTexture: GPUTexture;
     vBuffer: GPUTexture;
 
-    gBuffer: GPUBuffer;
+    gBufferTex: GPUBuffer;
+    gBufferAttri: GPUBuffer;
+    previousGBufferAttri: GPUBuffer;
     currentReservoir: GPUBuffer;
     previousReservoir: GPUBuffer;
     constructor(device: webGPUDevice) {
@@ -38,9 +40,17 @@ class BufferPool {
             format: "rgba32uint",// baryCoord.yz, primitiveID, motionVec
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
         });
-        this.gBuffer = device.device.createBuffer({
+        this.gBufferTex = device.device.createBuffer({
             size: 2 * 4 * originWidth * originHeight,
             usage: GPUBufferUsage.STORAGE,
+        });
+        this.gBufferAttri = device.device.createBuffer({
+            size: 4 * 4 * originWidth * originHeight,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+        });
+        this.previousGBufferAttri = device.device.createBuffer({
+            size: 4 * 4 * originWidth * originHeight,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
         });
         // LightDI,wDI,WDI,MDIGI.xy
         // Xvisible.xyz Nvisible.xy
@@ -58,7 +68,7 @@ class BufferPool {
     update(encode: GPUCommandEncoder, device: webGPUDevice) {
         let originWidth = Math.floor(device.canvas.width / device.upscaleRatio);
         let originHeight = Math.floor(device.canvas.height / device.upscaleRatio);
-
+        encode.copyBufferToBuffer(this.gBufferAttri, 0, this.previousGBufferAttri, 0, 4 * 4 * originWidth * originHeight);
         encode.copyTextureToTexture({ texture: this.currentFrameBuffer, }, { texture: this.previousFrameBuffer, }, { width: originWidth, height: originHeight });
 
         encode.copyTextureToTexture({ texture: device.context.getCurrentTexture(), }, { texture: this.previousDisplayBuffer, }, { width: device.canvas.width, height: device.canvas.height });

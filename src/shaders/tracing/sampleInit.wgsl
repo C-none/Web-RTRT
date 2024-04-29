@@ -22,6 +22,13 @@ fn sampleTex(tex: texture_2d_array<f32>, uv: vec2f, index: u32, grad: vec2f, def
     // return textureSampleLevel(tex, samp, uv, index, 0.0);
 }
 
+fn sampleTexIndirect(tex: texture_2d_array<f32>, uv: vec2f, index: u32, defaultValue: vec4f) -> vec4f {
+    if ~index == 0 {
+        return defaultValue;
+    }
+    return textureSampleLevel(tex, samp, uv, index, 0.0);
+}
+
 fn unpackTriangle(triangle: PrimaryHitInfo, origin: vec3f, direction: vec3f, halfConeAngle: f32) -> PointInfo {
     let offset = vec3u(indices[triangle.primId * 3], indices[triangle.primId * 3 + 1], indices[triangle.primId * 3 + 2]);
     let vtx = array<vec4f, 3>(vertices[offset.x], vertices[offset.y], vertices[offset.z]);
@@ -82,4 +89,46 @@ fn unpackTriangle(triangle: PrimaryHitInfo, origin: vec3f, direction: vec3f, hal
     T = normalize(cross(B, normalGeo) * tangent.w);
     retInfo.tbn = mat3x3f(T, B, normalGeo);
     return retInfo;
+}
+
+// simplify computing normal and sampling tex.
+fn unpackTriangleIndirect(triangle: PrimaryHitInfo, direction: vec3f) -> PointInfo {
+
+    let offset = vec3u(indices[triangle.primId * 3], indices[triangle.primId * 3 + 1], indices[triangle.primId * 3 + 2]);
+    let vtx = array<vec4f, 3>(vertices[offset.x], vertices[offset.y], vertices[offset.z]);
+    let geo = array<GeometryInfo, 3>(geometries[offset.x], geometries[offset.y], geometries[offset.z]);
+
+    var retInfo: PointInfo = PointInfo();
+    let albedoId = geo[0].id.x;
+    let normalMapId = geo[0].id.y;
+    let specularMapId = geo[0].id.z;
+    let uv = triangle.baryCoord.x * geo[0].uv.xy + triangle.baryCoord.y * geo[1].uv.xy + triangle.baryCoord.z * geo[2].uv.xy;
+    retInfo.metallicRoughness = sampleTexIndirect(specularMap, uv, specularMapId, vec4f(0.5)).zy;
+    // retInfo.metallicRoughness = vec2f(0.9, 0.5);
+    retInfo.baseColor = sampleTexIndirect(albedo, uv, albedoId, vec4f(1.)).xyz;
+
+    retInfo.pos = vec3f(triangle.baryCoord.x * vtx[0].xyz + triangle.baryCoord.y * vtx[1].xyz + triangle.baryCoord.z * vtx[2].xyz);
+    var normalGeo = normalize(cross(vtx[1].xyz - vtx[0].xyz, vtx[2].xyz - vtx[0].xyz));
+
+    // fix normal orientation
+    var iterpolatedNormal = normalize(triangle.baryCoord.x * geo[0].normal.xyz + triangle.baryCoord.y * geo[1].normal.xyz + triangle.baryCoord.z * geo[2].normal.xyz);
+    if dot(normalGeo, iterpolatedNormal) < 0.0 {
+        normalGeo = -normalGeo;
+    }
+    if dot(normalGeo, direction) > 0.0 {
+        normalGeo = -normalGeo;
+        iterpolatedNormal = -iterpolatedNormal;
+    }
+    // compute normal shading
+    retInfo.normalShading = retInfo.normalShading;
+    retInfo.tbn[2] = normalGeo;
+    return retInfo;
+}
+
+fn storeGBuffer(idx: u32, pos: vec3f, normal: vec3f, baseColor: vec3f, metallicRoughness: vec2f) {
+    // {f16(baseColor.xy)} {f16(baseColor.z)f8(metallicRoughness.xy)}
+    let tex = vec2u(pack2x16unorm(baseColor.xy), pack2x16unorm(vec2f(baseColor.z, 0)) | pack4x8unorm(vec4f(0., 0., metallicRoughness)));
+    gBufferTex[idx] = tex;
+    let attri: vec4f = vec4f(pos, bitcast<f32>(normalEncode(normal)));
+    gBufferAttri[idx] = attri;
 }

@@ -69,16 +69,30 @@ class CameraManager {
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
     }
+    lastVp = new THREE.Matrix4();
+    vp = new THREE.Matrix4();
+    viewMatrix = new THREE.Matrix4();
+    projectionMatrix = new THREE.Matrix4();
+    uboArray = new Float32Array(16 * 4);
     update() {
-        let lastVp = this.camera.projectionMatrix.clone().multiply(this.camera.matrixWorldInverse);
+        this.lastVp.copy(this.camera.projectionMatrix).multiply(this.camera.matrixWorldInverse);
         this.controls.update();
-        let vp = this.camera.projectionMatrix.clone().multiply(this.camera.matrixWorldInverse);
-        this.Frustum.setFromProjectionMatrix(vp);
-        const viewMatrix = this.camera.matrixWorld.clone();
-        const projectionMatrix = this.camera.projectionMatrixInverse.clone();
-
-        const uboArray = new Float32Array([...viewMatrix.elements, ...projectionMatrix.elements, ...vp.elements, ...lastVp.elements]);
-        this.device.device.queue.writeBuffer(this.cameraBuffer, 0, uboArray);
+        this.vp.copy(this.camera.projectionMatrix).multiply(this.camera.matrixWorldInverse);
+        this.viewMatrix.copy(this.camera.matrixWorld);
+        this.projectionMatrix.copy(this.camera.projectionMatrixInverse);
+        // this.lastVp = this.camera.projectionMatrix.clone().multiply(this.camera.matrixWorldInverse);
+        // this.controls.update();
+        // this.vp = this.camera.projectionMatrix.clone().multiply(this.camera.matrixWorldInverse);
+        // this.viewMatrix = this.camera.matrixWorld.clone();
+        // this.projectionMatrix = this.camera.projectionMatrixInverse.clone();
+        // const uboArray = new Float32Array([...viewMatrix.elements, ...projectionMatrix.elements, ...vp.elements, ...lastVp.elements]);
+        this.Frustum.setFromProjectionMatrix(this.vp);
+        // write uboArray
+        this.uboArray.set(this.viewMatrix.elements, 0);
+        this.uboArray.set(this.projectionMatrix.elements, 16);
+        this.uboArray.set(this.vp.elements, 32);
+        this.uboArray.set(this.lastVp.elements, 48);
+        this.device.device.queue.writeBuffer(this.cameraBuffer, 0, this.uboArray);
     }
     checkFrustum(sphere: THREE.Sphere): boolean {
         if (sphere)

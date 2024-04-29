@@ -8,12 +8,14 @@ class rayTracing {
     device: webGPUDevice;
     model: gltfmodel;
     camera: CameraManager;
-    lightCount: number = 24;
+    lightCount: number = 32;
     spatialReuseIteration: number = 2;
     GI_FLAG: number = 1;
 
     vBuffer: GPUTexture;
-    gBuffer: GPUBuffer;
+    gBufferTex: GPUBuffer;
+    gBufferAttri: GPUBuffer;
+    previousGBufferAttri: GPUBuffer;
     outputTexture: GPUTexture;
     uniformBuffer: GPUBuffer;
     lightBuffer: GPUBuffer;
@@ -50,7 +52,9 @@ class rayTracing {
         this.model = model;
         this.camera = cameraManager;
         this.vBuffer = buffers.vBuffer;
-        this.gBuffer = buffers.gBuffer;
+        this.gBufferTex = buffers.gBufferTex;
+        this.gBufferAttri = buffers.gBufferAttri;
+        this.previousGBufferAttri = buffers.previousGBufferAttri;
         this.outputTexture = buffers.currentFrameBuffer;
         this.sampler = this.device.device.createSampler({
             addressModeU: "mirror-repeat",
@@ -218,10 +222,20 @@ class rayTracing {
                     visibility: GPUShaderStage.COMPUTE,
                     buffer: { type: 'uniform', },
                 },
-                {// gBuffer
+                {// gBufferTex
                     binding: 9,
                     visibility: GPUShaderStage.COMPUTE,
                     buffer: { type: 'storage', },
+                },
+                {// gBufferAttri
+                    binding: 10,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'storage', },
+                },
+                {// previous gBufferAttri
+                    binding: 11,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'read-only-storage', },
                 }
             ]
         });
@@ -283,8 +297,13 @@ class rayTracing {
                     visibility: GPUShaderStage.COMPUTE,
                     buffer: { type: 'uniform', },
                 },
-                {// gBuffer
+                {// gBufferTex
                     binding: 2,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'read-only-storage', },
+                },
+                {// reservoir buffer
+                    binding: 3,
                     visibility: GPUShaderStage.COMPUTE,
                     buffer: { type: 'read-only-storage', },
                 }
@@ -303,8 +322,13 @@ class rayTracing {
                     visibility: GPUShaderStage.COMPUTE,
                     buffer: { type: 'uniform', },
                 },
-                {// gBuffer
+                {// gBufferTex
                     binding: 2,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'read-only-storage', },
+                },
+                {// gBufferAttri
+                    binding: 3,
                     visibility: GPUShaderStage.COMPUTE,
                     buffer: { type: 'read-only-storage', },
                 }
@@ -417,9 +441,17 @@ class rayTracing {
                     binding: 8,
                     resource: { buffer: this.uniformBuffer, },
                 },
-                {// gBuffer
+                {// gBufferTex
                     binding: 9,
-                    resource: { buffer: this.gBuffer, },
+                    resource: { buffer: this.gBufferTex, },
+                },
+                {// gBufferAttri
+                    binding: 10,
+                    resource: { buffer: this.gBufferAttri, },
+                },
+                {// previous gBufferAttri
+                    binding: 11,
+                    resource: { buffer: this.previousGBufferAttri, },
                 }
             ]
         });
@@ -477,9 +509,13 @@ class rayTracing {
                     binding: 1,
                     resource: { buffer: this.uniformBuffer, },
                 },
-                {// gBuffer
+                {// gBufferTex
                     binding: 2,
-                    resource: { buffer: this.gBuffer, },
+                    resource: { buffer: this.gBufferTex, },
+                },
+                {// gBufferAttri
+                    binding: 3,
+                    resource: { buffer: this.gBufferAttri, },
                 }
             ]
         });
@@ -509,9 +545,13 @@ class rayTracing {
                     binding: 1,
                     resource: { buffer: this.uniformBuffer, },
                 },
-                {// gBuffer
+                {// gBufferTex
                     binding: 2,
-                    resource: { buffer: this.gBuffer, },
+                    resource: { buffer: this.gBufferTex, },
+                },
+                {// gBufferAttri
+                    binding: 3,
+                    resource: { buffer: this.gBufferAttri, },
                 }
             ]
         });
@@ -522,23 +562,23 @@ class rayTracing {
         await this.buildPipeline();
         this.buildBindGroup();
     }
+    uboBuffer = new ArrayBuffer(4 * 4);
     updateUBO() {
-        let uboBuffer = new ArrayBuffer(4 * 4);
-        let uboUint = new Uint32Array(uboBuffer);
-        let uboFloat = new Float32Array(uboBuffer);
+        let uboUint = new Uint32Array(this.uboBuffer);
+        let uboFloat = new Float32Array(this.uboBuffer);
         uboUint[3] = Math.floor(Math.random() * 0x100000000);
         uboFloat.set(this.camera.camera.position.toArray(), 0);
-        this.device.device.queue.writeBuffer(this.uniformBuffer, 0, uboBuffer);
+        this.device.device.queue.writeBuffer(this.uniformBuffer, 0, this.uboBuffer);
         // update light position
-        const minBound = [-10, -1, -10];
-        const maxBound = [10, 12, 10];
+        const minBound = [-10, -0, -5];
+        const maxBound = [10, 12, 5];
         const center = [0, 5, 0];
         for (let i = 0; i < this.lightCount; i++) {
             for (let j = 0; j < 3; j++) {
                 if (this.lightPosition[i][j] < minBound[j] || this.lightPosition[i][j] > maxBound[j]) {
                     this.lightVelocity[i][j] = -this.lightVelocity[i][j];
                 }
-                this.lightPosition[i][j] += this.lightVelocity[i][j] * 0.015 - (this.lightPosition[i][j] - center[j]) * 0.001;
+                this.lightPosition[i][j] += this.lightVelocity[i][j] * 0.015 - (this.lightPosition[i][j] - center[j]) * 0.0015;
             }
             // write light position
             this.device.device.queue.writeBuffer(this.lightBuffer, 4 * (4 + 8 * i), this.lightPosition[i]);

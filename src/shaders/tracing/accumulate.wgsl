@@ -1,6 +1,8 @@
 @group(0) @binding(0) var frame : texture_storage_2d<rgba16float, write>;
 @group(0) @binding(1) var<uniform> ubo: UBO;
-@group(0) @binding(2) var<storage, read> gBuffer : array<vec2u>;
+@group(0) @binding(2) var<storage, read> gBufferTex : array<vec2u>;
+@group(0) @binding(3) var<storage, read> gBufferAttri : array<vec4f>;
+
 
 // #include <common.wgsl>;
 // #include <trace.wgsl>;
@@ -30,9 +32,8 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
         textureStore(frame, GlobalInvocationID.xy, vec4f(0.));
     }
     seed = tea(GlobalInvocationID.y * screen_size.x + GlobalInvocationID.x, _seed, 4);
-    var pointInfo = PointInfo(reservoirGI.xv, reservoirGI.nv, vec3f(0.), mat3x3f(), vec2f(0.));
-
-    loadGBuffer(launchIndex, &(pointInfo));
+    var pointInfo: PointInfo;
+    loadGBuffer(launchIndex, &pointInfo);
 
     var bsdf = vec3f(0.0);
     var geometryTerm = vec3f(1.0);
@@ -42,6 +43,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     var wo = light.position - shadingPoint;
     var dist = length(wo);
     wo = normalize(wo);
+    // traceShadowRay(shadingPoint, wo, dist);
     if traceShadowRay(shadingPoint, wo, dist) {
         reservoirDI.W = 0.;
         reservoirDI.w_sum = 0.;
