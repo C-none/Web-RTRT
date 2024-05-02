@@ -68,13 +68,16 @@ fn BSDF(shadingPoint: PointInfo, wo: vec3f, wi: vec3f) -> vec3f {
 }
 
 fn BSDFLuminance(shadingPoint: PointInfo, wo: vec3f, wi: vec3f) -> f32 {
-    let h = normalize(wi + wo);
-    let ndoti = max(0.000, dot(shadingPoint.normalShading, wi));
     let ndoto = max(0.000, dot(shadingPoint.normalShading, wo));
-    let hdoto = dot(h, wo);
-    let ndoth = max(0.000, dot(shadingPoint.normalShading, h));
-    let baseColorLuminance = luminance(shadingPoint.baseColor);
-    let diffuse = FdiffuseLuminance(baseColorLuminance, shadingPoint.metallicRoughness.y, ndoti, ndoto, hdoto);
-    let metallic = FmetallicLuminance(baseColorLuminance, shadingPoint.metallicRoughness.y, ndoth, h, hdoto, ndoti, ndoto);
-    return ((1.0 - shadingPoint.metallicRoughness.x) * diffuse + (shadingPoint.metallicRoughness.x) * metallic) / 16.;
+    return ndoto * INVPI;
+
+    // let h = normalize(wi + wo);
+    // let ndoti = max(0.000, dot(shadingPoint.normalShading, wi));
+    // let ndoto = max(0.000, dot(shadingPoint.normalShading, wo));
+    // let hdoto = dot(h, wo);
+    // let ndoth = max(0.000, dot(shadingPoint.normalShading, h));
+    // let baseColorLuminance = luminance(shadingPoint.baseColor);
+    // let diffuse = FdiffuseLuminance(baseColorLuminance, shadingPoint.metallicRoughness.y, ndoti, ndoto, hdoto);
+    // let metallic = FmetallicLuminance(baseColorLuminance, shadingPoint.metallicRoughness.y, ndoth, h, hdoto, ndoti, ndoto);
+    // return ((1.0 - shadingPoint.metallicRoughness.x) * diffuse + (shadingPoint.metallicRoughness.x) * metallic);
 }

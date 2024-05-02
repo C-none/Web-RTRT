@@ -15,10 +15,19 @@ struct ReservoirGI {
     xs: vec3f,
     W: f32,
     ns: vec3f,
+    lightId: u32,
     Lo: vec3f,
 }
 
-fn updateReserVoirGI(reservoir: ptr<function,ReservoirGI>, xv: vec3f, nv: vec3f, xs: vec3f, ns: vec3f, w: f32, Lo: vec3f) {
+fn Jacobian(x: vec3f, reservoir: ReservoirGI) -> f32 {
+    let qs = reservoir.xv - reservoir.xs;
+    let rs = x - reservoir.xs;
+    let thetaq = dot(reservoir.ns, normalize(qs));
+    let thetar = dot(reservoir.ns, normalize(rs));
+    return thetar / thetaq * dot(qs, qs) / dot(rs, rs);
+}
+
+fn updateReservoirGI(reservoir: ptr<function,ReservoirGI>, xv: vec3f, nv: vec3f, xs: vec3f, ns: vec3f, w: f32, Lo: vec3f, lightId: u32) {
     (*reservoir).M += 1;
     (*reservoir).w_sum += w;
     if random() < w / (*reservoir).w_sum {
@@ -27,6 +36,7 @@ fn updateReserVoirGI(reservoir: ptr<function,ReservoirGI>, xv: vec3f, nv: vec3f,
         (*reservoir).xs = xs;
         (*reservoir).ns = ns;
         (*reservoir).Lo = Lo;
+        (*reservoir).lightId = lightId;
     }
 }
 
@@ -39,6 +49,7 @@ fn combineReservoirsGI(reservoir: ptr<function,ReservoirGI>, other: ReservoirGI)
         (*reservoir).xs = other.xs;
         (*reservoir).ns = other.ns;
         (*reservoir).Lo = other.Lo;
+        (*reservoir).lightId = other.lightId;
     }
 }
 
@@ -46,17 +57,18 @@ fn combineReservoirsGI(reservoir: ptr<function,ReservoirGI>, other: ReservoirGI)
 @group(1) @binding(1) var<storage, read> previousReservoir: array<array<u32,16>>;
 
 fn loadReservoir(reservoir: ptr<storage,array<array<u32,16>>>, idx: u32, reservoirDI: ptr<function,ReservoirDI>, reservoirGI: ptr<function,ReservoirGI>, seed: ptr<function,u32>) {
-    // LightDI,wDI,WDI,MDIGI.xy
+    // LightDI/GI,wDI,WDI,MDIGI.xy
     // Xvisible.xyz Nvisible.xy
     // Xsample.xyz Nsample.xy
     // wGI,WGI, Lo.xy, Lo.z/seed
     let reservoirAll = (*reservoir)[idx];
-    (*reservoirDI).lightId = reservoirAll[0];
+    (*reservoirDI).lightId = reservoirAll[0] & 0xFFFF;
     (*reservoirDI).w_sum = bitcast<f32>(reservoirAll[1]);
     (*reservoirDI).W = bitcast<f32>(reservoirAll[2]);
     let MAll = vec2u(reservoirAll[3] & 0xFFFF, reservoirAll[3] >> 16);
     (*reservoirDI).M = MAll.x;
 
+    (*reservoirGI).lightId = reservoirAll[0] >> 16;
     (*reservoirGI).M = MAll.y;
     (*reservoirGI).xv = bitcast<vec3f>(vec3u(reservoirAll[4], reservoirAll[5], reservoirAll[6]));
     (*reservoirGI).nv = normalDecode(reservoirAll[7]);
@@ -69,13 +81,13 @@ fn loadReservoir(reservoir: ptr<storage,array<array<u32,16>>>, idx: u32, reservo
 }
 
 fn storeReservoir(reservoir: ptr<storage,array<array<u32,16>>,read_write>, idx: u32, reservoirDI: ReservoirDI, reservoirGI: ReservoirGI, seed: u32) {
-    // LightDI,wDI,WDI,MDIGI.xy
+    // LightDI/GI,wDI,WDI,MDIGI.xy
     // Xvisible.xyz Nvisible.xy
     // Xsample.xyz Nsample.xy
     // wGI,WGI, Lo.xy, Lo.z/seed
     let MAll = vec2u(reservoirDI.M, reservoirGI.M);
     (*reservoir)[idx] = array<u32,16>(
-        reservoirDI.lightId,
+        reservoirDI.lightId | (reservoirGI.lightId << 16),
         bitcast<u32>(reservoirDI.w_sum),
         bitcast<u32>(reservoirDI.W),
         MAll.x | (MAll.y << 16),

@@ -43,17 +43,32 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     var wo = light.position - shadingPoint;
     var dist = length(wo);
     wo = normalize(wo);
-    // traceShadowRay(shadingPoint, wo, dist);
-    if traceShadowRay(shadingPoint, wo, dist) {
-        reservoirDI.W = 0.;
-        reservoirDI.w_sum = 0.;
-    } else {
-        bsdf = BSDF(pointInfo, wo, wi);
-        geometryTerm = light.color * light.intensity / (dist * dist);
+    if reservoirDI.W > 0. {
+        if traceShadowRay(shadingPoint, wo, dist) {
+            reservoirDI.W = 0.;
+            reservoirDI.w_sum = 0.;
+        } else {
+            bsdf = BSDF(pointInfo, wo, wi);
+            geometryTerm = light.color * light.intensity / (dist * dist);
+        }
+        color += reservoirDI.W * bsdf * geometryTerm;
     }
-    color = reservoirDI.W * bsdf * geometryTerm;
-
     if ENABLE_GI {
+        if reservoirGI.W > 0 {
+            wo = reservoirGI.xs - shadingPoint;
+            dist = length(wo);
+            wo = normalize(wo);
+        // color = reservoirGI.Lo;
+            if traceShadowRay(shadingPoint, wo, dist) {
+                reservoirGI.W = 0.;
+                reservoirGI.w_sum = 0.;
+            } else {
+                bsdf = BSDF(pointInfo, wo, wi);
+                // geometryTerm = reservoirGI.Lo / Jacobian(shadingPoint, reservoirGI);
+                geometryTerm = reservoirGI.Lo;
+                color += reservoirGI.W * bsdf * geometryTerm * 4.;
+            }
+        }
     }
     textureStore(frame, GlobalInvocationID.xy, vec4f(color, 1.));
 }

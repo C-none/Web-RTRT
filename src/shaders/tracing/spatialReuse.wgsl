@@ -45,7 +45,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     var dist: f32;
     // const bias2: array<vec2f, 8 > = array<vec2f, 8>(vec2f(-1.0, 1.0), vec2f(0.0, 1.0), vec2f(1.0, 0.0), vec2f(1.0, 1.0), vec2f(-1.0, 0.0), vec2f(0.0, -1.0), vec2f(-1.0, -1.0), vec2f(1.0, -1.0));
     for (var i = 0u; i < 5; i = i + 1u) {
-        let neighbor_pos = screen_pos + samplingDisk() * 15.0;
+        let neighbor_pos = screen_pos + samplingDisk() * 20.0;
         // let neighbor_pos = screen_pos + bias2[i] * 2.;
         if any(neighbor_pos < vec2f(0.0)) || any(neighbor_pos >= vec2f(screen_size)) {
             continue;
@@ -56,18 +56,30 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
         loadReservoir(&previousReservoir, neighbor_launchIndex, &neighbor_reservoirDI, &neighbor_reservoirGI, &_seed);
         let neighbour_pointAttri: PointAttri = loadGBufferAttri(&gBufferAttri, neighbor_launchIndex);
         // check distance and normal diff
-        if neighbor_reservoirDI.W > 0. && distance(shadingPoint, neighbour_pointAttri.pos) <= 0.1 * depth && dot(pointInfo.normalShading, neighbour_pointAttri.normalShading) >= .9 {
+        if neighbor_reservoirDI.W > 0. && distance(shadingPoint, neighbour_pointAttri.pos) <= 0.04 * depth && dot(pointInfo.normalShading, neighbour_pointAttri.normalShading) >= .9 {
             light = getLight(neighbor_reservoirDI.lightId);
             wo = light.position - pointInfo.pos;
             dist = length(wo);
             wo = normalize(wo);
             if dot(wo, pointInfo.normalShading) > 0. {
+                // color += vec3f(0.2);
                 neighbor_reservoirDI.M = min(neighbor_reservoirDI.M, 256);
                 geometryTerm_luminance = light.intensity / (dist * dist);
                 bsdfLuminance = BSDFLuminance(pointInfo, wo, wi);
                 pHat = geometryTerm_luminance * bsdfLuminance;
                 neighbor_reservoirDI.w_sum = pHat * neighbor_reservoirDI.W * f32(neighbor_reservoirDI.M);
                 combineReservoirsDI(&reservoirDI, neighbor_reservoirDI);
+            }
+            if ENABLE_GI {
+                wo = neighbor_reservoirGI.xs - pointInfo.pos;
+                dist = length(wo);
+                wo = normalize(wo);
+                if dot(wo, pointInfo.normalShading) > 0. {
+                    neighbor_reservoirGI.M = min(neighbor_reservoirGI.M, 256);
+                    pHat = luminance(neighbor_reservoirGI.Lo);
+                    neighbor_reservoirGI.w_sum = pHat * neighbor_reservoirGI.W * f32(neighbor_reservoirGI.M);
+                    combineReservoirsGI(&reservoirGI, neighbor_reservoirGI);
+                }
             }
         }
     }
@@ -77,12 +89,6 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
         wo = light.position - pointInfo.pos;
         dist = length(wo);
         wo = normalize(wo);
-        // if dot(wo, pointInfo.normalShading) <= 0. {
-        //     color += vec3f(1., 0., 0.);
-        // }
-        // if dot(wi, pointInfo.normalShading) <= 0. {
-        //     color += vec3f(0., 1., 0.);
-        // }
         geometryTerm_luminance = light.intensity / (dist * dist);
         bsdfLuminance = BSDFLuminance(pointInfo, wo, wi);
         pHat = geometryTerm_luminance * bsdfLuminance;
@@ -92,10 +98,12 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
         } else {
             reservoirDI.W = reservoirDI.w_sum / max(0.001, pHat) / f32(reservoirDI.M);
         }
+        if ENABLE_GI {
+            reservoirGI.W = reservoirGI.w_sum / max(0.001, luminance(reservoirGI.Lo)) / f32(reservoirGI.M);
+        }
     }
 
-    if ENABLE_GI {
-    }
+
     // textureStore(frame, GlobalInvocationID.xy, vec4f(color, 1.));
     storeReservoir(&currentReservoir, launchIndex, reservoirDI, reservoirGI, seed);
 }

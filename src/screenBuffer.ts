@@ -52,7 +52,7 @@ class BufferPool {
             size: 4 * 4 * originWidth * originHeight,
             usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
         });
-        // LightDI,wDI,WDI,MDIGI.xy
+        // LightDI/GI,wDI,WDI,MDIGI.xy
         // Xvisible.xyz Nvisible.xy
         // Xsample.xyz Nsample.xy
         // wGI,WGI, Lo.xy, (Lo.z,seed)

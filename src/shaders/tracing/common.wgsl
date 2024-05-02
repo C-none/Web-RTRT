@@ -45,10 +45,9 @@ fn samplingDisk() -> vec2f {
 
 struct PointInfo {
     pos: vec3f,
-    // normalGeo: vec3f,
+    normalGeo: vec3f,
     normalShading: vec3f,
     baseColor: vec3f,
-    tbn: mat3x3f,
     metallicRoughness: vec2f,
 };
 

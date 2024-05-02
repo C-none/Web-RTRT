@@ -43,7 +43,6 @@ fn hitTriangle(rayInfo: RayInfo, triangleIndex: u32) -> HitInfo {
     //Möller-Trumbore algorithm
     let primInfo: PrimHitInfo = unpackPrimHitInfo(triangleIndex);
 
-    let INTERSECT_EPSILON: f32 = 0.00001;
     let origin = rayInfo.worldRayOrigin;
     let direction = rayInfo.worldRayDirection;
 
@@ -53,7 +52,8 @@ fn hitTriangle(rayInfo: RayInfo, triangleIndex: u32) -> HitInfo {
 
     let det = dot(e1, s1);
     var ret = HitInfo(vec3<f32 >(0.0), 0.0, false);
-    if abs(det) < INTERSECT_EPSILON {
+        // const INTERSECT_EPSILON: f32 = 0.000000001;
+    if abs(det) == 0. {
         return ret;
     }
     let s: vec3f = (origin - primInfo.pos[0].xyz) / det;
@@ -67,7 +67,7 @@ fn hitTriangle(rayInfo: RayInfo, triangleIndex: u32) -> HitInfo {
         return ret;
     }
     ret.hitDistance = dot(e2, s2);
-    if ret.hitDistance < 0.0 && ret.hitDistance < rayInfo.hitDistance {
+    if ret.hitDistance < 0.0 || ret.hitDistance > rayInfo.hitDistance {
         return ret;
     }
     ret.baryCoord = vec3<f32 >(1.0 - (b1 + b2), b1, b2);
@@ -94,7 +94,7 @@ fn traceRay(rayOrigin: vec3f, rayDirection: vec3f) -> RayInfo {
     rayInfo.isHit = 0u;
     rayInfo.hitDistance = 10000.0;
     rayInfo.worldRayDirection = normalize(rayDirection);
-    rayInfo.worldRayOrigin = rayOrigin + rayInfo.worldRayDirection * 0.001;
+    rayInfo.worldRayOrigin = rayOrigin + rayInfo.worldRayDirection * 0.00001;
     rayInfo.directionInverse = vec3<f32 >(1.0) / rayDirection;
     rayInfo.PrimitiveIndex = 0u;
 
@@ -132,9 +132,9 @@ fn traceRay(rayOrigin: vec3f, rayDirection: vec3f) -> RayInfo {
 fn traceShadowRay(rayOrigin: vec3f, rayDirection: vec3f, lightDistance: f32) -> bool {
     var rayInfo: RayInfo;
     rayInfo.isHit = 0u;
-    rayInfo.hitDistance = lightDistance-0.0001;
     rayInfo.worldRayDirection = normalize(rayDirection);
-    rayInfo.worldRayOrigin = rayOrigin + rayInfo.worldRayDirection * 0.001;
+    rayInfo.worldRayOrigin = rayOrigin + rayInfo.worldRayDirection * 0.00001;
+    rayInfo.hitDistance = lightDistance * 0.99;
     rayInfo.directionInverse = vec3<f32 >(1.0) / rayDirection;
     rayInfo.PrimitiveIndex = 0u;
 

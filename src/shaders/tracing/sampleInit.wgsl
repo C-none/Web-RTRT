@@ -29,7 +29,7 @@ fn sampleTexIndirect(tex: texture_2d_array<f32>, uv: vec2f, index: u32, defaultV
     return textureSampleLevel(tex, samp, uv, index, 0.0);
 }
 
-fn unpackTriangle(triangle: PrimaryHitInfo, origin: vec3f, direction: vec3f, halfConeAngle: f32) -> PointInfo {
+fn unpackTriangle(triangle: PrimaryHitInfo, origin: vec3f, halfConeAngle: f32) -> PointInfo {
     let offset = vec3u(indices[triangle.primId * 3], indices[triangle.primId * 3 + 1], indices[triangle.primId * 3 + 2]);
     let vtx = array<vec4f, 3>(vertices[offset.x], vertices[offset.y], vertices[offset.z]);
     let geo = array<GeometryInfo, 3>(geometries[offset.x], geometries[offset.y], geometries[offset.z]);
@@ -39,7 +39,7 @@ fn unpackTriangle(triangle: PrimaryHitInfo, origin: vec3f, direction: vec3f, hal
     let normalMapId = geo[0].id.y;
     let specularMapId = geo[0].id.z;
     retInfo.pos = vec3f(triangle.baryCoord.x * vtx[0].xyz + triangle.baryCoord.y * vtx[1].xyz + triangle.baryCoord.z * vtx[2].xyz);
-
+    let direction = normalize(retInfo.pos - origin);
     var normalGeo = normalize(cross(vtx[1].xyz - vtx[0].xyz, vtx[2].xyz - vtx[0].xyz));
     let uv = triangle.baryCoord.x * geo[0].uv.xy + triangle.baryCoord.y * geo[1].uv.xy + triangle.baryCoord.z * geo[2].uv.xy;
 
@@ -77,22 +77,20 @@ fn unpackTriangle(triangle: PrimaryHitInfo, origin: vec3f, direction: vec3f, hal
     if dot(normalGeo, direction) > 0.0 {
         normalGeo = -normalGeo;
         iterpolatedNormal = -iterpolatedNormal;
-        tangent = -tangent;
+        tangent = vec4f(-tangent.xyz, tangent.w);
     }
+    retInfo.normalGeo = normalGeo;
     // compute normal shading
     var T = normalize(tangent.xyz);
     var B = normalize(cross(iterpolatedNormal, T) * tangent.w);
-    retInfo.tbn = mat3x3f(T, B, iterpolatedNormal);
-    retInfo.normalShading = normalize(retInfo.tbn * retInfo.normalShading);
+    let tbn = mat3x3f(T, B, iterpolatedNormal);
+    retInfo.normalShading = normalize(tbn * retInfo.normalShading);
     // retInfo.normalShading = normalGeo;
-    B = normalize(cross(normalGeo, T) * tangent.w);
-    T = normalize(cross(B, normalGeo) * tangent.w);
-    retInfo.tbn = mat3x3f(T, B, normalGeo);
     return retInfo;
 }
 
 // simplify computing normal and sampling tex.
-fn unpackTriangleIndirect(triangle: PrimaryHitInfo, direction: vec3f) -> PointInfo {
+fn unpackTriangleIndirect(triangle: PrimaryHitInfo, origin: vec3f) -> PointInfo {
 
     let offset = vec3u(indices[triangle.primId * 3], indices[triangle.primId * 3 + 1], indices[triangle.primId * 3 + 2]);
     let vtx = array<vec4f, 3>(vertices[offset.x], vertices[offset.y], vertices[offset.z]);
@@ -108,6 +106,7 @@ fn unpackTriangleIndirect(triangle: PrimaryHitInfo, direction: vec3f) -> PointIn
     retInfo.baseColor = sampleTexIndirect(albedo, uv, albedoId, vec4f(1.)).xyz;
 
     retInfo.pos = vec3f(triangle.baryCoord.x * vtx[0].xyz + triangle.baryCoord.y * vtx[1].xyz + triangle.baryCoord.z * vtx[2].xyz);
+    let direction = normalize(retInfo.pos - origin);
     var normalGeo = normalize(cross(vtx[1].xyz - vtx[0].xyz, vtx[2].xyz - vtx[0].xyz));
 
     // fix normal orientation
@@ -120,8 +119,8 @@ fn unpackTriangleIndirect(triangle: PrimaryHitInfo, direction: vec3f) -> PointIn
         iterpolatedNormal = -iterpolatedNormal;
     }
     // compute normal shading
-    retInfo.normalShading = retInfo.normalShading;
-    retInfo.tbn[2] = normalGeo;
+    retInfo.normalShading = iterpolatedNormal;
+    retInfo.normalGeo = normalGeo;
     return retInfo;
 }
 
