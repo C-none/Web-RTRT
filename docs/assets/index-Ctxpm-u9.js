@@ -973,36 +973,36 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
     }\r
 \r
     // indirect illumination\r
-    // if ENABLE_GI {\r
-    //     let sampleVec: vec4f = samplingHemisphere();\r
-    //     // let sampleVec: vec4f = vec4f(0.0, 0.0, 1.0, 1.0);\r
-    //     let wi: vec3f = normalize(generateTBN(pointInfo.normalGeo) * sampleVec.xyz);\r
-    //     let tracePdf = max(0.01, sampleVec.w);\r
-    //     if dot(wi, pointInfo.normalGeo) >= 0. {\r
-    //         let rayInfo: RayInfo = traceRay(pointInfo.pos, wi);\r
-    //         if rayInfo.isHit == 1 {\r
-    //             let triangle: PrimaryHitInfo = PrimaryHitInfo(rayInfo.hitAttribute, rayInfo.PrimitiveIndex, vec2f(0));\r
-    //             let pointSampleInfo: PointInfo = unpackTriangleIndirect(triangle, wi);\r
-    //             let samplePoint = pointSampleInfo.pos;\r
+    if ENABLE_GI {\r
+        let sampleVec: vec4f = samplingHemisphere();\r
+        // let sampleVec: vec4f = vec4f(0.0, 0.0, 1.0, 1.0);\r
+        let wi: vec3f = normalize(generateTBN(pointInfo.normalGeo) * sampleVec.xyz);\r
+        let tracePdf = max(0.01, sampleVec.w);\r
+        if dot(wi, pointInfo.normalGeo) >= 0. {\r
+            let rayInfo: RayInfo = traceRay(pointInfo.pos, wi);\r
+            if rayInfo.isHit == 1 {\r
+                let triangle: PrimaryHitInfo = PrimaryHitInfo(rayInfo.hitAttribute, rayInfo.PrimitiveIndex, vec2f(0));\r
+                let pointSampleInfo: PointInfo = unpackTriangleIndirect(triangle, wi);\r
+                let samplePoint = pointSampleInfo.pos;\r
 \r
-    //             light = sampleLight();\r
-    //             let lightPdf = sampleLightProb(light);\r
-    //             wo = light.position - samplePoint;\r
-    //             dist = length(wo);\r
-    //             wo = normalize(wo);\r
-    //         // check the visibility from sample point to light\r
-    //             if dot(wo, pointSampleInfo.normalShading) > 0.0 && dot(wo, pointSampleInfo.normalGeo) > 0.0 {\r
-    //                 if !traceShadowRay(samplePoint, wo, dist) {\r
-    //                     let geometryTerm = light.color * light.intensity / (dist * dist);\r
-    //                     let bsdf = BSDF(pointSampleInfo, wo, -wi);\r
-    //                     let Lo = bsdf * geometryTerm / lightPdf;\r
-    //                     updateReservoirGI(&reservoirCurGI, pointInfo.pos, pointInfo.normalShading, pointSampleInfo.pos, pointSampleInfo.normalShading, luminance(Lo) / tracePdf, Lo, light.id);\r
-    //                 }\r
-    //             }\r
-    //         }\r
-    //     }\r
-    //     reservoirCurGI.M = 1;\r
-    // }\r
+                light = sampleLight();\r
+                let lightPdf = sampleLightProb(light);\r
+                wo = light.position - samplePoint;\r
+                dist = length(wo);\r
+                wo = normalize(wo);\r
+            // check the visibility from sample point to light\r
+                if dot(wo, pointSampleInfo.normalShading) > 0.0 && dot(wo, pointSampleInfo.normalGeo) > 0.0 {\r
+                    if !traceShadowRay(samplePoint, wo, dist) {\r
+                        let geometryTerm = light.color * light.intensity / (dist * dist);\r
+                        let bsdf = BSDF(pointSampleInfo, wo, -wi);\r
+                        let Lo = bsdf * geometryTerm / lightPdf;\r
+                        updateReservoirGI(&reservoirCurGI, pointInfo.pos, pointInfo.normalShading, pointSampleInfo.pos, pointSampleInfo.normalShading, luminance(Lo) / tracePdf, Lo, light.id);\r
+                    }\r
+                }\r
+            }\r
+        }\r
+        reservoirCurGI.M = 1;\r
+    }\r
 \r
     // temperal reuse\r
 \r
