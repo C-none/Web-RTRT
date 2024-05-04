@@ -76,7 +76,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
     var pointPrev: PointAttri;
 
 
-    let globalPreId = vec2f(GlobalInvocationID.xy) + 0.5 - primaryTri.motionVec;
+    let globalPreId = vec2f(GlobalInvocationID.xy) + 0.5 - primaryTri.motionVec * vec2f(screen_size);
     let launchPreIndex = select(-1, i32(globalPreId.y) * i32(screen_size.x) + i32(globalPreId.x), all(globalPreId >= vec2f(0.0)) && all(globalPreId < vec2f(screen_size)));
     let shadingPoint: vec3f = pointInfo.pos;
 
@@ -125,41 +125,43 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
     }
 
     // indirect illumination
-    if ENABLE_GI {
-        let sampleVec: vec4f = samplingHemisphere();
-        // let sampleVec: vec4f = vec4f(0.0, 0.0, 1.0, 1.0);
-        let wi: vec3f = normalize(generateTBN(pointInfo.normalGeo) * sampleVec.xyz);
-        let tracePdf = max(0.001, sampleVec.w);
-        if dot(wi, pointInfo.normalGeo) >= 0. {
-            let rayInfo: RayInfo = traceRay(pointInfo.pos, wi);
-            if rayInfo.isHit == 1 {
-                let triangle: PrimaryHitInfo = PrimaryHitInfo(rayInfo.hitAttribute, rayInfo.PrimitiveIndex, vec2f(0));
-                let pointSampleInfo: PointInfo = unpackTriangleIndirect(triangle, wi);
-                let samplePoint = pointSampleInfo.pos;
+    // if ENABLE_GI {
+    //     let sampleVec: vec4f = samplingHemisphere();
+    //     // let sampleVec: vec4f = vec4f(0.0, 0.0, 1.0, 1.0);
+    //     let wi: vec3f = normalize(generateTBN(pointInfo.normalGeo) * sampleVec.xyz);
+    //     let tracePdf = max(0.01, sampleVec.w);
+    //     if dot(wi, pointInfo.normalGeo) >= 0. {
+    //         let rayInfo: RayInfo = traceRay(pointInfo.pos, wi);
+    //         if rayInfo.isHit == 1 {
+    //             let triangle: PrimaryHitInfo = PrimaryHitInfo(rayInfo.hitAttribute, rayInfo.PrimitiveIndex, vec2f(0));
+    //             let pointSampleInfo: PointInfo = unpackTriangleIndirect(triangle, wi);
+    //             let samplePoint = pointSampleInfo.pos;
 
-                light = sampleLight();
-                let lightPdf = sampleLightProb(light);
-                wo = light.position - samplePoint;
-                dist = length(wo);
-                wo = normalize(wo);
-            // check the visibility from sample point to light
-                if dot(wo, pointSampleInfo.normalShading) > 0.0 && dot(wo, pointSampleInfo.normalGeo) > 0.0 {
-                    if !traceShadowRay(samplePoint, wo, dist) {
-                        let geometryTerm = light.color * light.intensity / (dist * dist);
-                        let bsdf = BSDF(pointSampleInfo, wo, -wi);
-                        let Lo = bsdf * geometryTerm / lightPdf;
-                        updateReservoirGI(&reservoirCurGI, pointInfo.pos, pointInfo.normalShading, pointSampleInfo.pos, pointSampleInfo.normalShading, luminance(Lo) / tracePdf, Lo, light.id);
-                    }
-                }
-            }
-        }
-        reservoirCurGI.M = 1;
-    }
+    //             light = sampleLight();
+    //             let lightPdf = sampleLightProb(light);
+    //             wo = light.position - samplePoint;
+    //             dist = length(wo);
+    //             wo = normalize(wo);
+    //         // check the visibility from sample point to light
+    //             if dot(wo, pointSampleInfo.normalShading) > 0.0 && dot(wo, pointSampleInfo.normalGeo) > 0.0 {
+    //                 if !traceShadowRay(samplePoint, wo, dist) {
+    //                     let geometryTerm = light.color * light.intensity / (dist * dist);
+    //                     let bsdf = BSDF(pointSampleInfo, wo, -wi);
+    //                     let Lo = bsdf * geometryTerm / lightPdf;
+    //                     updateReservoirGI(&reservoirCurGI, pointInfo.pos, pointInfo.normalShading, pointSampleInfo.pos, pointSampleInfo.normalShading, luminance(Lo) / tracePdf, Lo, light.id);
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     reservoirCurGI.M = 1;
+    // }
 
     // temperal reuse
 
-    let depth = distance(shadingPoint, origin);
-    if distance(shadingPoint, pointPrev.pos) < 0.1 * depth && dot(pointInfo.normalShading, pointPrev.normalShading) > 0.9 {
+    // plane distance
+    let posDiff = pointPrev.pos - pointInfo.pos;
+    let planeDist = abs(dot(posDiff, pointInfo.normalShading));
+    if dot(pointInfo.normalShading, pointPrev.normalShading) > 0.5 && planeDist < 0.05 {
         if reservoirPrevDI.W > 0.0 {
             const capped = 8u;
             reservoirPrevDI.M = min(reservoirPrevDI.M, capped * reservoirCurDI.M);
@@ -177,27 +179,30 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
             }
         }
         if ENABLE_GI {
-            reservoirPrevGI.M = min(reservoirPrevGI.M, 30);
-            wo = reservoirPrevGI.xs - shadingPoint;
-            dist = length(wo);
-            wo = normalize(wo);
+            if reservoirPrevGI.W > 0.0 {
+                reservoirPrevGI.M = min(reservoirPrevGI.M, 20);
+                wo = reservoirPrevGI.xs - shadingPoint;
+                dist = length(wo);
+                wo = normalize(wo);
 
-            var flag = true;
-            if f32(_seed & 0x7fffffff) / f32(0x80000000) < 1. / 8. {
+                var flag = true;
+                if f32(_seed & 0x7fffffff) / f32(0x80000000) < 1. / 8. {
                 // check visibility from light to sample point
-                light = getLight(reservoirPrevGI.lightId);
-                let dir = light.position - reservoirPrevGI.xs;
-                let dist = length(dir);
-                let wo = normalize(dir);
-                if traceShadowRay(reservoirPrevGI.xs, wo, dist) {
-                    flag = false;
+                    light = getLight(reservoirPrevGI.lightId);
+                    let dir = light.position - reservoirPrevGI.xs;
+                    let dist = length(dir);
+                    let wo = normalize(dir);
+                    if traceShadowRay(reservoirPrevGI.xs, wo, dist) {
+                        flag = false;
+                    }
                 }
-            }
-            if flag && dot(wo, pointInfo.normalShading) > 0.0 && dot(wo, pointInfo.normalGeo) > 0.0 {
-                pHat = luminance(reservoirPrevGI.Lo);
-                reservoirPrevGI.w_sum = pHat * reservoirPrevGI.W * f32(reservoirPrevGI.M);
+                if flag && dot(wo, pointInfo.normalShading) > 0.0 && dot(wo, pointInfo.normalGeo) > 0.0 {
+                    pHat = luminance(reservoirPrevGI.Lo);
+                // pHat = luminance(reservoirPrevGI.Lo) / Jacobian(pointInfo.pos, reservoirPrevGI);
+                    reservoirPrevGI.w_sum = pHat * reservoirPrevGI.W * f32(reservoirPrevGI.M);
 
-                combineReservoirsGI(&reservoirCurGI, reservoirPrevGI);
+                    combineReservoirsGI(&reservoirCurGI, reservoirPrevGI);
+                }
             }
         }
     }

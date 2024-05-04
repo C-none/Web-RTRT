@@ -64,8 +64,8 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
                 reservoirGI.w_sum = 0.;
             } else {
                 bsdf = BSDF(pointInfo, wo, wi);
-                // geometryTerm = reservoirGI.Lo / Jacobian(shadingPoint, reservoirGI);
                 geometryTerm = reservoirGI.Lo;
+                // geometryTerm = reservoirGI.Lo / Jacobian(shadingPoint, reservoirGI);
                 color += reservoirGI.W * bsdf * geometryTerm * 4.;
             }
         }

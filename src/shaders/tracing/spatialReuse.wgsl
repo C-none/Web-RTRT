@@ -55,27 +55,33 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
         var neighbor_reservoirGI = ReservoirGI();
         loadReservoir(&previousReservoir, neighbor_launchIndex, &neighbor_reservoirDI, &neighbor_reservoirGI, &_seed);
         let neighbour_pointAttri: PointAttri = loadGBufferAttri(&gBufferAttri, neighbor_launchIndex);
-        // check distance and normal diff
-        if neighbor_reservoirDI.W > 0. && distance(shadingPoint, neighbour_pointAttri.pos) <= 0.04 * depth && dot(pointInfo.normalShading, neighbour_pointAttri.normalShading) >= .9 {
-            light = getLight(neighbor_reservoirDI.lightId);
-            wo = light.position - pointInfo.pos;
-            dist = length(wo);
-            wo = normalize(wo);
-            if dot(wo, pointInfo.normalShading) > 0. {
+        // check plane distance
+        let posDiff = pointInfo.pos - neighbour_pointAttri.pos;
+        let planeDist = abs(dot(posDiff, pointInfo.normalShading));
+        if planeDist < 0.04 && dot(pointInfo.normalShading, neighbour_pointAttri.normalShading) > .8 {
+            // color += vec3f(0.2);
+            if neighbor_reservoirDI.W > 0. {
+                light = getLight(neighbor_reservoirDI.lightId);
+                wo = light.position - pointInfo.pos;
+                dist = length(wo);
+                wo = normalize(wo);
+                if dot(wo, pointInfo.normalShading) > 0. {
                 // color += vec3f(0.2);
-                neighbor_reservoirDI.M = min(neighbor_reservoirDI.M, 256);
-                geometryTerm_luminance = light.intensity / (dist * dist);
-                bsdfLuminance = BSDFLuminance(pointInfo, wo, wi);
-                pHat = geometryTerm_luminance * bsdfLuminance;
-                neighbor_reservoirDI.w_sum = pHat * neighbor_reservoirDI.W * f32(neighbor_reservoirDI.M);
-                combineReservoirsDI(&reservoirDI, neighbor_reservoirDI);
+                    neighbor_reservoirDI.M = min(neighbor_reservoirDI.M, 256);
+                    geometryTerm_luminance = light.intensity / (dist * dist);
+                    bsdfLuminance = BSDFLuminance(pointInfo, wo, wi);
+                    pHat = geometryTerm_luminance * bsdfLuminance;
+                    neighbor_reservoirDI.w_sum = pHat * neighbor_reservoirDI.W * f32(neighbor_reservoirDI.M);
+                    combineReservoirsDI(&reservoirDI, neighbor_reservoirDI);
+                }
             }
             if ENABLE_GI {
                 wo = neighbor_reservoirGI.xs - pointInfo.pos;
                 dist = length(wo);
                 wo = normalize(wo);
                 if dot(wo, pointInfo.normalShading) > 0. {
-                    neighbor_reservoirGI.M = min(neighbor_reservoirGI.M, 256);
+                    neighbor_reservoirGI.M = min(neighbor_reservoirGI.M, 200);
+                    // pHat = luminance(neighbor_reservoirGI.Lo) / Jacobian(pointInfo.pos, neighbor_reservoirGI);
                     pHat = luminance(neighbor_reservoirGI.Lo);
                     neighbor_reservoirGI.w_sum = pHat * neighbor_reservoirGI.W * f32(neighbor_reservoirGI.M);
                     combineReservoirsGI(&reservoirGI, neighbor_reservoirGI);

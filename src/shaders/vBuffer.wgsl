@@ -71,10 +71,10 @@ fn fs(
     let motionVec = currentScreenPos - lastScreenPos;
     var visibility = Visibility(
         stage.BaryCoord.yz,
-        vec2f(motionVec.x * f32(width), motionVec.y * f32(height)), // motionVec
+        vec2f(motionVec.x, motionVec.y), // motionVec
         stage.primId,
         // color,
     );
 
-    return vec4u(bitcast<vec2u>(visibility.baryCoord), visibility.primId, pack2x16float(visibility.motionVec));
+    return vec4u(bitcast<vec2u>(visibility.baryCoord), visibility.primId, pack2x16snorm(visibility.motionVec));
 }

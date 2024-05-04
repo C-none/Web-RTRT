@@ -37,7 +37,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     // |
     // v
     // Y
-    let motionVec: vec2f = unpack2x16float(visibility.w);
+    let motionVec: vec2f = unpack2x16snorm(visibility.w) * vec2f(origin_size.xy);
     // textureStore(currentDisplay, screen_pos, vec4f(motionVec.xy * 0.05 + 0.5, 0.0, 1.0));
     let trianlgeID = visibility.z;
     // textureStore(currentDisplay, screen_pos, vec4f(vec3f(f32(visibility.z) / 3.), 1.));

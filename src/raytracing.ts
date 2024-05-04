@@ -8,8 +8,8 @@ class rayTracing {
     device: webGPUDevice;
     model: gltfmodel;
     camera: CameraManager;
-    lightCount: number = 2;
-    spatialReuseIteration: number = 4;
+    lightCount: number = 1;
+    spatialReuseIteration: number = 2;
     GI_FLAG: number = 1;
 
     vBuffer: GPUTexture;
@@ -92,26 +92,26 @@ class rayTracing {
         let lights = Array<light>(cnt);
         const dimension = Math.sqrt(cnt);
         // lights[0] = new light(new Float32Array([0, 18, 3.5]), new Float32Array([1, 1, 1]), 2500, 0);
-        lights[0] = new light(new Float32Array([0, 5, 0]), new Float32Array([0.4, 0.9, 1]), 40, 0);
-        lights[1] = new light(new Float32Array([-4, 5, 0]), new Float32Array([1, 0.9, 0.4]), 30, 1);
+        lights[0] = new light(new Float32Array([0, 5, 0]), new Float32Array([0.7, 0.9, 1]), 80, 0);
+        // lights[1] = new light(new Float32Array([-4, 5, 0]), new Float32Array([1, 0.9, 0.4]), 60, 1);
         // generate light in grid
-        for (let i = 2; i < cnt; i++) {
-            // let x = (i % dimension) / dimension * 12 - 6;
-            // let y = 5;
-            // let z = Math.floor(i / dimension) / dimension * 12 - 6;
-            // // generate color correlated to the position randomly
-            // let r = Math.abs(x) / 6;
-            // let g = 0.5;
-            // let b = Math.abs(z) / 6;
-            let x = Math.random() * 12 - 6;
-            let y = Math.random() * 8;
-            let z = Math.random() * 12 - 6;
-            let r = Math.random() * 0.7 + 0.3;
-            let g = Math.random() * 0.7 + 0.3;
-            let b = Math.random() * 0.7 + 0.3;
-            let intensity = Math.random() * 20 + 20;
-            lights[i] = new light(new Float32Array([x, y, z]), new Float32Array([r, g, b]), intensity, i);
-        }
+        // for (let i = 0; i < cnt; i++) {
+        //     // let x = (i % dimension) / dimension * 12 - 6;
+        //     // let y = 5;
+        //     // let z = Math.floor(i / dimension) / dimension * 12 - 6;
+        //     // // generate color correlated to the position randomly
+        //     // let r = Math.abs(x) / 6;
+        //     // let g = 0.5;
+        //     // let b = Math.abs(z) / 6;
+        //     let x = Math.random() * 12 - 6;
+        //     let y = Math.random() * 8;
+        //     let z = Math.random() * 12 - 6;
+        //     let r = Math.random() * 0.7 + 0.3;
+        //     let g = Math.random() * 0.7 + 0.3;
+        //     let b = Math.random() * 0.7 + 0.3;
+        //     let intensity = Math.random() * 5 + 10;
+        //     lights[i] = new light(new Float32Array([x, y, z]), new Float32Array([r, g, b]), intensity, i);
+        // }
 
         this.lightBuffer = this.device.device.createBuffer({
             label: 'light buffer',
@@ -176,7 +176,7 @@ class rayTracing {
                 unit[i] *= speed;
             this.lightVelocity[i] = unit;
         }
-        // this.lightVelocity[0] = [0, 4., 0];
+        this.lightVelocity[0] = [2, 0., 0];
     }
     private buildBindGroupLayout() {
         this.bindGroupLayoutInit = this.device.device.createBindGroupLayout({
@@ -574,8 +574,8 @@ class rayTracing {
         uboFloat.set(this.camera.camera.position.toArray(), 0);
         this.device.device.queue.writeBuffer(this.uniformBuffer, 0, this.uboBuffer);
         // update light position
-        const minBound = [-6, 1, -1];
-        const maxBound = [6, 8, 1];
+        const minBound = [-5, 1, -1];
+        const maxBound = [5, 8, 1];
         const center = [0, 5, 0];
         for (let i = 0; i < this.lightCount; i++) {
             for (let j = 0; j < 3; j++) {
