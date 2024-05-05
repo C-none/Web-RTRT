@@ -71,19 +71,19 @@ fn fs(
     // if color.a < 0.5 {
     //         discard;
     // }
-
-    let lastScreenPos = vec2f(stage.lastPos.x / stage.lastPos.w, - stage.lastPos.y / stage.lastPos.w) / 2.0 + 0.5;
-    let currentScreenPos = vec2f(stage.pos.x / f32(width), stage.pos.y / f32(height));
+    let screen_size = vec2f(f32(width), f32(height));
+    let lastScreenPos = vec2f(stage.lastPos.x, - stage.lastPos.y) / stage.lastPos.w / 2.0 + 0.5;
+    let currentScreenPos = stage.pos.xy / screen_size;
     let motionVec = currentScreenPos - lastScreenPos;
     var visibility = Visibility(
         stage.BaryCoord.yz,
-        vec2f(motionVec.x, motionVec.y), // motionVec
+        motionVec,
         stage.primId,
         // color,
     );
 
     return VBufferOut(
-        vec4u(bitcast<vec2u>(visibility.baryCoord), visibility.primId, pack2x16snorm(visibility.motionVec)),
-        pack2x16snorm(visibility.motionVec)
+        vec4u(bitcast<vec2u>(visibility.baryCoord), visibility.primId, 0),
+        pack2x16float(visibility.motionVec)
     );
 } 

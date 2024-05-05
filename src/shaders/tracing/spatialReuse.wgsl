@@ -33,6 +33,8 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     seed = tea(GlobalInvocationID.y * screen_size.x + GlobalInvocationID.x, _seed, 4);
     var pointInfo: PointInfo;
     loadGBuffer(launchIndex, &pointInfo);
+    // reservoirDI.M = min(reservoirDI.M, 256);
+    // reservoirGI.M = min(reservoirGI.M, 300);
 
     var geometryTerm_luminance: f32;
     var bsdfLuminance: f32;
@@ -66,8 +68,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
                 dist = length(wo);
                 wo = normalize(wo);
                 if dot(wo, pointInfo.normalShading) > 0. {
-                // color += vec3f(0.2);
-                    neighbor_reservoirDI.M = min(neighbor_reservoirDI.M, 256);
+                    // neighbor_reservoirDI.M = min(neighbor_reservoirDI.M, 64);
                     geometryTerm_luminance = light.intensity / (dist * dist);
                     bsdfLuminance = BSDFLuminance(pointInfo, wo, wi);
                     pHat = geometryTerm_luminance * bsdfLuminance;
@@ -80,7 +81,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
                 dist = length(wo);
                 wo = normalize(wo);
                 if dot(wo, pointInfo.normalShading) > 0. && dot(-wo, neighbor_reservoirGI.ns) >= 0. {
-                    neighbor_reservoirGI.M = min(neighbor_reservoirGI.M, 200);
+                    neighbor_reservoirGI.M = min(neighbor_reservoirGI.M, 300);
                     // pHat = luminance(neighbor_reservoirGI.Lo) / Jacobian(pointInfo.pos, neighbor_reservoirGI);
                     pHat = luminance(neighbor_reservoirGI.Lo);
                     neighbor_reservoirGI.w_sum = pHat * neighbor_reservoirGI.W * f32(neighbor_reservoirGI.M);
@@ -100,12 +101,12 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
         pHat = geometryTerm_luminance * bsdfLuminance;
         if pHat <= 0.0 {
             reservoirDI.W = 0.0;
-            reservoirDI.w_sum = 0.0;
+            // reservoirDI.w_sum = 0.0;
         } else {
-            reservoirDI.W = reservoirDI.w_sum / max(0.001, pHat) / f32(reservoirDI.M);
+            reservoirDI.W = reservoirDI.w_sum / max(0.01, pHat) / f32(reservoirDI.M);
         }
         if ENABLE_GI {
-            reservoirGI.W = reservoirGI.w_sum / max(0.001, luminance(reservoirGI.Lo)) / f32(reservoirGI.M);
+            reservoirGI.W = reservoirGI.w_sum / max(0.01, luminance(reservoirGI.Lo)) / f32(reservoirGI.M);
         }
     }
 

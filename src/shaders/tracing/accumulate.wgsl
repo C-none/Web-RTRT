@@ -19,6 +19,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
         return;
     }
     var color = vec3f(0.0);
+    var illuminace = vec3f(0.0);
     let origin = ubo.origin;
 
     let launchIndex = GlobalInvocationID.y * screen_size.x + GlobalInvocationID.x;
@@ -30,6 +31,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
 
     if reservoirDI.W < 0.0 {
         textureStore(frame, GlobalInvocationID.xy, vec4f(0.));
+        return;
     }
     seed = tea(GlobalInvocationID.y * screen_size.x + GlobalInvocationID.x, _seed, 4);
     var pointInfo: PointInfo;
@@ -46,12 +48,13 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     if reservoirDI.W > 0. {
         if traceShadowRay(shadingPoint, wo, dist) {
             reservoirDI.W = 0.;
-            reservoirDI.w_sum = 0.;
+            // reservoirDI.w_sum = 0.;
         } else {
             bsdf = BSDF(pointInfo, wo, wi);
             geometryTerm = light.color * light.intensity / (dist * dist);
         }
         color += reservoirDI.W * bsdf * geometryTerm;
+        illuminace += reservoirDI.W * geometryTerm;
     }
     if ENABLE_GI {
         if reservoirGI.W > 0 {
@@ -61,13 +64,14 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
         // color = reservoirGI.Lo;
             if dot(wo, pointInfo.normalShading) < 0. || dot(-wo, reservoirGI.ns) < 0. || traceShadowRay(shadingPoint, wo, dist) {
                 reservoirGI.W = 0.;
-                reservoirGI.w_sum = 0.;
+                // reservoirGI.w_sum = 0.;
             } else {
                 bsdf = BSDF(pointInfo, wo, wi);
-                geometryTerm = reservoirGI.Lo;
+                geometryTerm = reservoirGI.Lo * 4;
                 // geometryTerm = reservoirGI.Lo / Jacobian(shadingPoint, reservoirGI);
-                color += reservoirGI.W * bsdf * geometryTerm * 8.;
             }
+            color += reservoirGI.W * bsdf * geometryTerm;
+            illuminace += reservoirGI.W * geometryTerm;
         }
     }
     textureStore(frame, GlobalInvocationID.xy, vec4f(color, 1.));

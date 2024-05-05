@@ -10,7 +10,7 @@ class rayTracing {
     camera: CameraManager;
     lightCount: number = 1;
     spatialReuseIteration: number = 2;
-    GI_FLAG: number = 0;
+    GI_FLAG: number = 1;
 
     vBuffer: GPUTexture;
     motionVec: GPUTexture;
@@ -111,7 +111,7 @@ class rayTracing {
         //     let r = Math.random() * 0.7 + 0.3;
         //     let g = Math.random() * 0.7 + 0.3;
         //     let b = Math.random() * 0.7 + 0.3;
-        //     let intensity = Math.random() * 5 + 10;
+        //     let intensity = Math.random() * 3 + 5;
         //     lights[i] = new light(new Float32Array([x, y, z]), new Float32Array([r, g, b]), intensity, i);
         // }
 
@@ -590,8 +590,11 @@ class rayTracing {
         const center = [0, 5, 0];
         for (let i = 0; i < this.lightCount; i++) {
             for (let j = 0; j < 3; j++) {
-                if (this.lightPosition[i][j] < minBound[j] || this.lightPosition[i][j] > maxBound[j]) {
-                    this.lightVelocity[i][j] = -this.lightVelocity[i][j];
+                if (this.lightPosition[i][j] < minBound[j]) {
+                    this.lightVelocity[i][j] = Math.abs(this.lightVelocity[i][j]);
+                }
+                if (this.lightPosition[i][j] > maxBound[j]) {
+                    this.lightVelocity[i][j] = -Math.abs(this.lightVelocity[i][j]);
                 }
                 // this.lightPosition[i][j] += this.lightVelocity[i][j] * 0.015 - (this.lightPosition[i][j] - center[j]) * 0.0015;
                 this.lightPosition[i][j] += this.lightVelocity[i][j] * 0.03;

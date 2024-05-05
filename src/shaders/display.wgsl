@@ -31,8 +31,8 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     // |
     // v
     // Y
-    let motionVec: vec2f = unpack2x16snorm(textureLoad(motionVec, origin_pos, 0).r) * vec2f(origin_size.xy);
-    // textureStore(currentDisplay, screen_pos, vec4f(motionVec.xy * 0.05 + 0.5, 0.0, 1.0));
+    let motionVec: vec2f = unpack2x16float(textureLoad(motionVec, origin_pos, 0).r) * vec2f(origin_size);
+    // textureStore(currentDisplay, screen_pos, vec4f(motionVec.xy * 0.005 + 0.5, 0.0, 1.0));
 
     // raytracing depth
     var color = vec4f(0.0, 0.0, 0.0, 1.0);

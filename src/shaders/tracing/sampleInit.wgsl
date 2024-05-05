@@ -63,7 +63,7 @@ fn unpackTriangle(triangle: PrimaryHitInfo, origin: vec3f, halfConeAngle: f32) -
     }
 
     // sample textures. The sampled value should be used as far as possible to avoid the texture cache miss.
-    retInfo.normalShading = sampleTex(normalMap, uv, normalMapId, uvGradient, vec4f(0., 0., 1., 1.)).xyz * 2.0 - 1.0;
+    retInfo.normalShading = sampleTex(normalMap, uv, normalMapId, uvGradient, vec4f(0., 0., 1., 1.)).xyz * 2.-1.;
     retInfo.metallicRoughness = sampleTex(specularMap, uv, specularMapId, uvGradient, vec4f(0.5)).zy;
     // retInfo.metallicRoughness = vec2f(0.9, 0.5);
     retInfo.baseColor = sampleTex(albedo, uv, albedoId, uvGradient, vec4f(1.)).xyz;
@@ -83,9 +83,10 @@ fn unpackTriangle(triangle: PrimaryHitInfo, origin: vec3f, halfConeAngle: f32) -
     // compute normal shading
     var T = normalize(tangent.xyz);
     var B = normalize(cross(iterpolatedNormal, T) * tangent.w);
+    T = normalize(cross(B, iterpolatedNormal) * tangent.w);
     let tbn = mat3x3f(T, B, iterpolatedNormal);
     retInfo.normalShading = normalize(tbn * retInfo.normalShading);
-    // retInfo.normalShading = normalGeo;
+    // retInfo.normalShading = iterpolatedNormal ;
     return retInfo;
 }
 
