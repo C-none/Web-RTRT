@@ -59,14 +59,14 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
             dist = length(wo);
             wo = normalize(wo);
         // color = reservoirGI.Lo;
-            if traceShadowRay(shadingPoint, wo, dist) {
+            if dot(wo, pointInfo.normalShading) < 0. || dot(-wo, reservoirGI.ns) < 0. || traceShadowRay(shadingPoint, wo, dist) {
                 reservoirGI.W = 0.;
                 reservoirGI.w_sum = 0.;
             } else {
                 bsdf = BSDF(pointInfo, wo, wi);
                 geometryTerm = reservoirGI.Lo;
                 // geometryTerm = reservoirGI.Lo / Jacobian(shadingPoint, reservoirGI);
-                color += reservoirGI.W * bsdf * geometryTerm * 4.;
+                color += reservoirGI.W * bsdf * geometryTerm * 8.;
             }
         }
     }

@@ -12,7 +12,7 @@ class Display {
     bindGroupEntries: GPUBindGroupEntry[];
 
     device: webGPUDevice;
-    vBuffer: GPUTexture;
+    motionVec: GPUTexture;
     depthTexture: GPUTexture;
     previousDisplayBuffer: GPUTexture;
     currentFrameBuffer: GPUTexture;
@@ -21,7 +21,7 @@ class Display {
 
     constructor(device: webGPUDevice, buffers: BufferPool, camera: CameraManager) {
         this.device = device;
-        this.vBuffer = buffers.vBuffer;
+        this.motionVec = buffers.motionVec;
         this.depthTexture = buffers.depthTexture;
         this.previousDisplayBuffer = buffers.previousDisplayBuffer;
         this.currentFrameBuffer = buffers.currentFrameBuffer;
@@ -78,7 +78,7 @@ class Display {
             { binding: 0, resource: this.device.context.getCurrentTexture().createView(), },
             { binding: 1, resource: this.previousDisplayBuffer.createView(), },
             { binding: 2, resource: this.sampler, },
-            { binding: 3, resource: this.vBuffer.createView(), },
+            { binding: 3, resource: this.motionVec.createView(), },
             { binding: 4, resource: this.depthTexture.createView(), },
             { binding: 5, resource: this.currentFrameBuffer.createView(), },
             { binding: 6, resource: this.previousFrameBuffer.createView(), },

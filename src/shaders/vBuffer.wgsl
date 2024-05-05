@@ -51,10 +51,16 @@ fn vs(
 override width: u32 ;          
 override height: u32 ; 
 
+struct VBufferOut {
+    @location(0) vBuffer: vec4u,
+    @location(1) motionVec: u32,
+};
+
+
 @fragment
 fn fs(
     stage: InterStage,
-) -> @location(0) vec4u {
+) -> VBufferOut {
 
     _ = height;
     _ = width;
@@ -76,5 +82,8 @@ fn fs(
         // color,
     );
 
-    return vec4u(bitcast<vec2u>(visibility.baryCoord), visibility.primId, pack2x16snorm(visibility.motionVec));
-}
+    return VBufferOut(
+        vec4u(bitcast<vec2u>(visibility.baryCoord), visibility.primId, pack2x16snorm(visibility.motionVec)),
+        pack2x16snorm(visibility.motionVec)
+    );
+} 

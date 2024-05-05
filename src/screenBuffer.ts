@@ -6,6 +6,7 @@ class BufferPool {
     previousDisplayBuffer: GPUTexture;
     depthTexture: GPUTexture;
     vBuffer: GPUTexture;
+    motionVec: GPUTexture;
 
     gBufferTex: GPUBuffer;
     gBufferAttri: GPUBuffer;
@@ -37,7 +38,12 @@ class BufferPool {
         });
         this.vBuffer = device.device.createTexture({
             size: { width: originWidth, height: originHeight },
-            format: "rgba32uint",// baryCoord.yz, primitiveID, motionVec
+            format: "rgba32uint",// baryCoord.yz, primitiveID, instanceID
+            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+        });
+        this.motionVec = device.device.createTexture({
+            size: { width: originWidth, height: originHeight },
+            format: "r32uint",// motionVec.xy
             usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
         });
         this.gBufferTex = device.device.createBuffer({

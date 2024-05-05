@@ -9,6 +9,7 @@ class VBuffer {
     model: gltfmodel;
     camera: CameraManager;
     vBuffer: GPUTexture;
+    motionVec: GPUTexture;
     depthTexture: GPUTexture;
     sampler: GPUSampler;
 
@@ -22,6 +23,7 @@ class VBuffer {
         this.model = model;
         this.camera = cameraManager;
         this.vBuffer = buffers.vBuffer;
+        this.motionVec = buffers.motionVec;
         this.depthTexture = buffers.depthTexture;
         this.sampler = this.device.device.createSampler({
             addressModeU: "mirror-repeat",
@@ -80,6 +82,7 @@ class VBuffer {
             ]
         });
     }
+    renderPassDescriptor: GPURenderPassDescriptor;
     buildPipeline() {
         const module = this.device.device.createShaderModule({
             label: 'vBuffer',
@@ -122,7 +125,7 @@ class VBuffer {
             fragment: {
                 module: module,
                 entryPoint: 'fs',
-                targets: [{ format: this.vBuffer.format, },],
+                targets: [{ format: this.vBuffer.format, }, { format: this.motionVec.format, }],
                 constants: {
                     width: Math.floor(this.device.canvas.width / this.device.upscaleRatio),
                     height: Math.floor(this.device.canvas.height / this.device.upscaleRatio),
@@ -140,6 +143,26 @@ class VBuffer {
 
             }
         });
+        this.renderPassDescriptor = {
+            colorAttachments: [
+                {
+                    view: this.vBuffer.createView(),
+                    loadOp: 'clear',
+                    storeOp: 'store',
+                },
+                {
+                    view: this.motionVec.createView(),
+                    loadOp: 'clear',
+                    storeOp: 'store',
+                }
+            ],
+            depthStencilAttachment: {
+                view: this.depthTexture.createView(),
+                depthClearValue: 1.0,
+                depthLoadOp: 'clear',
+                depthStoreOp: 'store',
+            },
+        };
     }
 
     async init() {
@@ -149,22 +172,7 @@ class VBuffer {
     }
 
     record(commandEncoder: GPUCommandEncoder) {
-        const passEncoder = commandEncoder.beginRenderPass({
-            colorAttachments: [
-                {
-                    view: this.vBuffer.createView(),
-                    clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
-                    loadOp: 'clear',
-                    storeOp: 'store',
-                },
-            ],
-            depthStencilAttachment: {
-                view: this.depthTexture.createView(),
-                depthClearValue: 1.0,
-                depthLoadOp: 'clear',
-                depthStoreOp: 'store',
-            },
-        });
+        const passEncoder = commandEncoder.beginRenderPass(this.renderPassDescriptor);
         passEncoder.setPipeline(this.pipeline);
         passEncoder.setBindGroup(0, this.bindingGroup);
         passEncoder.setVertexBuffer(0, this.model.rasterVtxBuffer);

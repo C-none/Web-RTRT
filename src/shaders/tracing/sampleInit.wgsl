@@ -10,7 +10,7 @@ fn primaryHit(screen_pos: vec2u) -> PrimaryHitInfo {
     let bataGamma = bitcast<vec2f>(visibilityInfo.xy);
     primaryHitInfo.baryCoord = vec3f(1.0 - bataGamma.x - bataGamma.y, bataGamma.x, bataGamma.y);
     primaryHitInfo.primId = visibilityInfo.z;
-    primaryHitInfo.motionVec = unpack2x16snorm(visibilityInfo.w);
+    primaryHitInfo.motionVec = unpack2x16snorm(textureLoad(motionVec, screen_pos, 0).r);
     return primaryHitInfo;
 }
 

@@ -10,9 +10,10 @@ class rayTracing {
     camera: CameraManager;
     lightCount: number = 1;
     spatialReuseIteration: number = 2;
-    GI_FLAG: number = 1;
+    GI_FLAG: number = 0;
 
     vBuffer: GPUTexture;
+    motionVec: GPUTexture;
     gBufferTex: GPUBuffer;
     gBufferAttri: GPUBuffer;
     previousGBufferAttri: GPUBuffer;
@@ -52,6 +53,7 @@ class rayTracing {
         this.model = model;
         this.camera = cameraManager;
         this.vBuffer = buffers.vBuffer;
+        this.motionVec = buffers.motionVec;
         this.gBufferTex = buffers.gBufferTex;
         this.gBufferAttri = buffers.gBufferAttri;
         this.previousGBufferAttri = buffers.previousGBufferAttri;
@@ -92,7 +94,7 @@ class rayTracing {
         let lights = Array<light>(cnt);
         const dimension = Math.sqrt(cnt);
         // lights[0] = new light(new Float32Array([0, 18, 3.5]), new Float32Array([1, 1, 1]), 2500, 0);
-        lights[0] = new light(new Float32Array([0, 5, 0]), new Float32Array([0.7, 0.9, 1]), 80, 0);
+        lights[0] = new light(new Float32Array([0, 5.5, 0]), new Float32Array([1, 1, 1]), 80, 0);
         // lights[1] = new light(new Float32Array([-4, 5, 0]), new Float32Array([1, 0.9, 0.4]), 60, 1);
         // generate light in grid
         // for (let i = 0; i < cnt; i++) {
@@ -241,6 +243,11 @@ class rayTracing {
                     binding: 11,
                     visibility: GPUShaderStage.COMPUTE,
                     buffer: { type: 'read-only-storage', },
+                },
+                {// motion vector
+                    binding: 12,
+                    visibility: GPUShaderStage.COMPUTE,
+                    texture: { sampleType: 'uint', },
                 }
             ]
         });
@@ -456,6 +463,10 @@ class rayTracing {
                 {// previous gBufferAttri
                     binding: 11,
                     resource: { buffer: this.previousGBufferAttri, },
+                },
+                {// motion vector
+                    binding: 12,
+                    resource: this.motionVec.createView(),
                 }
             ]
         });

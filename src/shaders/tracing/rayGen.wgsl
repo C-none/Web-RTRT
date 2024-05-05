@@ -24,6 +24,7 @@ struct GeometryInfo {
 @group(0) @binding(9) var<storage, read_write> gBufferTex : array<vec2u>;
 @group(0) @binding(10) var<storage, read_write> gBufferAttri : array<vec4f>;
 @group(0) @binding(11) var<storage, read> previousGBufferAttri : array<vec4f>;
+@group(0) @binding(12) var motionVec: texture_2d<u32>;
 // #include <common.wgsl>;
 // #include <trace.wgsl>;
 // #include <sampleInit.wgsl>;
