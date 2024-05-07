@@ -11,6 +11,7 @@ class rayTracing {
     lightCount: number = 1;
     spatialReuseIteration: number = 2;
     GI_FLAG: number = 1;
+    dynamicLight: boolean = true;
 
     vBuffer: GPUTexture;
     motionVec: GPUTexture;
@@ -98,20 +99,20 @@ class rayTracing {
         // lights[1] = new light(new Float32Array([-4, 5, 0]), new Float32Array([1, 0.9, 0.4]), 60, 1);
         // generate light in grid
         // for (let i = 0; i < cnt; i++) {
-        //     // let x = (i % dimension) / dimension * 12 - 6;
-        //     // let y = 5;
-        //     // let z = Math.floor(i / dimension) / dimension * 12 - 6;
-        //     // // generate color correlated to the position randomly
-        //     // let r = Math.abs(x) / 6;
-        //     // let g = 0.5;
-        //     // let b = Math.abs(z) / 6;
-        //     let x = Math.random() * 12 - 6;
-        //     let y = Math.random() * 8;
-        //     let z = Math.random() * 12 - 6;
-        //     let r = Math.random() * 0.7 + 0.3;
-        //     let g = Math.random() * 0.7 + 0.3;
-        //     let b = Math.random() * 0.7 + 0.3;
-        //     let intensity = Math.random() * 3 + 5;
+        //     let x = (i % dimension) / dimension * 12 - 6;
+        //     let y = 5;
+        //     let z = Math.floor(i / dimension) / dimension * 12 - 6;
+        //     // generate color correlated to the position randomly
+        //     let r = Math.abs(x) / 6;
+        //     let g = 0.5;
+        //     let b = Math.abs(z) / 6;
+        //     // let x = Math.random() * 10 - 5;
+        //     // let y = Math.random() * 8;
+        //     // let z = Math.random() * 2 - 1;
+        //     // let r = Math.random() * 0.7 + 0.3;
+        //     // let g = Math.random() * 0.7 + 0.3;
+        //     // let b = Math.random() * 0.7 + 0.3;
+        //     let intensity = Math.random() * 10 + 20;
         //     lights[i] = new light(new Float32Array([x, y, z]), new Float32Array([r, g, b]), intensity, i);
         // }
 
@@ -585,22 +586,24 @@ class rayTracing {
         uboFloat.set(this.camera.camera.position.toArray(), 0);
         this.device.device.queue.writeBuffer(this.uniformBuffer, 0, this.uboBuffer);
         // update light position
-        const minBound = [-5, 1, -1];
-        const maxBound = [5, 8, 1];
-        const center = [0, 5, 0];
-        for (let i = 0; i < this.lightCount; i++) {
-            for (let j = 0; j < 3; j++) {
-                if (this.lightPosition[i][j] < minBound[j]) {
-                    this.lightVelocity[i][j] = Math.abs(this.lightVelocity[i][j]);
+        if (this.dynamicLight) {
+            const minBound = [-5, 1, -0.5];
+            const maxBound = [5, 8, 0.5];
+            const center = [0, 5, 0];
+            for (let i = 0; i < this.lightCount; i++) {
+                for (let j = 0; j < 3; j++) {
+                    if (this.lightPosition[i][j] < minBound[j]) {
+                        this.lightVelocity[i][j] = Math.abs(this.lightVelocity[i][j]);
+                    }
+                    if (this.lightPosition[i][j] > maxBound[j]) {
+                        this.lightVelocity[i][j] = -Math.abs(this.lightVelocity[i][j]);
+                    }
+                    // this.lightPosition[i][j] += this.lightVelocity[i][j] * 0.015 - (this.lightPosition[i][j] - center[j]) * 0.0015;
+                    this.lightPosition[i][j] += this.lightVelocity[i][j] * 0.03;
                 }
-                if (this.lightPosition[i][j] > maxBound[j]) {
-                    this.lightVelocity[i][j] = -Math.abs(this.lightVelocity[i][j]);
-                }
-                // this.lightPosition[i][j] += this.lightVelocity[i][j] * 0.015 - (this.lightPosition[i][j] - center[j]) * 0.0015;
-                this.lightPosition[i][j] += this.lightVelocity[i][j] * 0.03;
+                // write light position
+                this.device.device.queue.writeBuffer(this.lightBuffer, 4 * (4 + 8 * i), this.lightPosition[i]);
             }
-            // write light position
-            this.device.device.queue.writeBuffer(this.lightBuffer, 4 * (4 + 8 * i), this.lightPosition[i]);
         }
     }
 

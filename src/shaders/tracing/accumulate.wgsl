@@ -48,7 +48,6 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     if reservoirDI.W > 0. {
         if traceShadowRay(shadingPoint, wo, dist) {
             reservoirDI.W = 0.;
-            // reservoirDI.w_sum = 0.;
         } else {
             bsdf = BSDF(pointInfo, wo, wi);
             geometryTerm = light.color * light.intensity / (dist * dist);
@@ -63,8 +62,8 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
             wo = normalize(wo);
         // color = reservoirGI.Lo;
             if dot(wo, pointInfo.normalShading) < 0. || dot(-wo, reservoirGI.ns) < 0. || traceShadowRay(shadingPoint, wo, dist) {
+            // if dot(wo, pointInfo.normalShading) < 0. || dot(-wo, reservoirGI.ns) < 0. {
                 reservoirGI.W = 0.;
-                // reservoirGI.w_sum = 0.;
             } else {
                 bsdf = BSDF(pointInfo, wo, wi);
                 geometryTerm = reservoirGI.Lo * 4;

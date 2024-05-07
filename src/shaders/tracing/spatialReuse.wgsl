@@ -81,7 +81,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
                 dist = length(wo);
                 wo = normalize(wo);
                 if dot(wo, pointInfo.normalShading) > 0. && dot(-wo, neighbor_reservoirGI.ns) >= 0. {
-                    neighbor_reservoirGI.M = min(neighbor_reservoirGI.M, 300);
+                    // neighbor_reservoirGI.M = min(neighbor_reservoirGI.M, 300);
                     // pHat = luminance(neighbor_reservoirGI.Lo) / Jacobian(pointInfo.pos, neighbor_reservoirGI);
                     pHat = luminance(neighbor_reservoirGI.Lo);
                     neighbor_reservoirGI.w_sum = pHat * neighbor_reservoirGI.W * f32(neighbor_reservoirGI.M);
@@ -103,10 +103,10 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
             reservoirDI.W = 0.0;
             // reservoirDI.w_sum = 0.0;
         } else {
-            reservoirDI.W = reservoirDI.w_sum / max(0.01, pHat) / f32(reservoirDI.M);
+            reservoirDI.W = reservoirDI.w_sum / max(0.02, pHat) / f32(reservoirDI.M);
         }
         if ENABLE_GI {
-            reservoirGI.W = reservoirGI.w_sum / max(0.01, luminance(reservoirGI.Lo)) / f32(reservoirGI.M);
+            reservoirGI.W = reservoirGI.w_sum / max(0.02, luminance(reservoirGI.Lo)) / f32(reservoirGI.M);
         }
     }
 

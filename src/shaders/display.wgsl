@@ -9,6 +9,16 @@
 override zNear: f32 = 0.01;
 override zFar: f32 = 50.0;
 
+fn ACESToneMapping(color: vec3f, adapted_lum: f32) -> vec3f {
+    const A = 2.51;
+    const B = 0.03;
+    const C = 2.43;
+    const D = 0.59;
+    const E = 0.14;
+    let ret = color * adapted_lum;
+    return (ret * (A * ret + B)) / (ret * (C * ret + D) + E);
+}
+
 @compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     let screen_size: vec2u = textureDimensions(currentDisplay);
@@ -41,5 +51,5 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     // } else {
     //     color = textureSampleLevel(previousFrame, samp, vec2f(origin_pos) / vec2f(origin_size), 0);
     // }
-    textureStore(currentDisplay, screen_pos, color);
+    textureStore(currentDisplay, screen_pos, vec4f(ACESToneMapping(color.rgb, 1), 1.0));
 }
