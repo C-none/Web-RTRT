@@ -2,6 +2,7 @@ import basic from './basic.instanced.vert.wgsl?raw';
 import position from './position.frag.wgsl?raw';
 import compute from './compute.position.wgsl?raw';
 
+import utils from './utils.wgsl?raw';
 import vBuffer from './vBuffer.wgsl?raw';
 
 import lightUpdate from './lightUpdate.wgsl?raw';
@@ -17,6 +18,8 @@ import slopeAABBTest from './tracing/slopeAABBTest.wgsl?raw';
 import spatialReuse from './tracing/spatialReuse.wgsl?raw';
 import accumulate from './tracing/accumulate.wgsl?raw';
 
+import denoiseAccum from './denoise/denoiseAccum.wgsl?raw';
+
 import display from './display.wgsl?raw';
 
 const insert = (wgsl: string, snippets: any) =>
@@ -27,6 +30,8 @@ class ShaderManager {
         "basic.instanced.vert.wgsl": basic,
         "position.frag.wgsl": position,
         "compute.position.wgsl": compute,
+        "utils.wgsl": utils,
+
         "light.wgsl": light,
         "lightUpdate.wgsl": lightUpdate,
         "common.wgsl": common,
@@ -40,6 +45,8 @@ class ShaderManager {
         "slopeAABBTest.wgsl": slopeAABBTest,
         "spatialReuse.wgsl": spatialReuse,
         "accumulate.wgsl": accumulate,
+
+        "denoiseAccum.wgsl": denoiseAccum,
     }
     constructor() {
         for (const name in this.shaders) {

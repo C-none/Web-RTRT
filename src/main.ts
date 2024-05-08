@@ -4,6 +4,7 @@ import { gltfmodel } from './gltf';
 import { CameraManager } from './camera';
 import { VBuffer } from './vBuffer';
 import { rayTracing } from './raytracing';
+import { Denoiser } from './denoiser';
 import { LogOnScreen } from './utils';
 import { BufferPool } from './screenBuffer';
 
@@ -15,6 +16,7 @@ class Application {
 
     vBuffer: VBuffer;
     rayTracing: rayTracing;
+    denoiser: Denoiser
     display: Display;
 
     async init() {
@@ -31,6 +33,9 @@ class Application {
         this.rayTracing = new rayTracing(this.device, this.model, this.camera, this.buffers);
         await this.rayTracing.init();
 
+        // this.denoiser = new Denoiser(this.device, this.buffers);
+        // await this.denoiser.init();
+
         this.display = new Display(this.device, this.buffers, this.camera);
 
         console.log("my model:", this.model);
@@ -43,6 +48,7 @@ class Application {
 
         this.vBuffer.record(commandEncoder);
         this.rayTracing.record(commandEncoder);
+        // this.denoiser.record(commandEncoder);
         this.display.record(commandEncoder);
 
         this.buffers.update(commandEncoder, this.device);

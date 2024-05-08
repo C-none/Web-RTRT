@@ -15,8 +15,8 @@ class Display {
     motionVec: GPUTexture;
     depthTexture: GPUTexture;
     previousDisplayBuffer: GPUTexture;
-    currentFrameBuffer: GPUTexture;
-    previousFrameBuffer: GPUTexture;
+    currentFrameBuffer: GPUBuffer;
+    previousFrameBuffer: GPUBuffer;
     sampler: GPUSampler;
 
     constructor(device: webGPUDevice, buffers: BufferPool, camera: CameraManager) {
@@ -59,12 +59,12 @@ class Display {
                 {
                     binding: 5,
                     visibility: GPUShaderStage.COMPUTE,
-                    texture: { sampleType: 'float', }
+                    buffer: { type: 'read-only-storage' },
                 },
                 {
                     binding: 6,
                     visibility: GPUShaderStage.COMPUTE,
-                    texture: { sampleType: 'float', }
+                    buffer: { type: 'read-only-storage' },
                 }
             ],
         });
@@ -80,8 +80,8 @@ class Display {
             { binding: 2, resource: this.sampler, },
             { binding: 3, resource: this.motionVec.createView(), },
             { binding: 4, resource: this.depthTexture.createView(), },
-            { binding: 5, resource: this.currentFrameBuffer.createView(), },
-            { binding: 6, resource: this.previousFrameBuffer.createView(), },
+            { binding: 5, resource: { buffer: this.currentFrameBuffer }, },
+            { binding: 6, resource: { buffer: this.previousFrameBuffer }, },
         ]
         this.displayPipelineLayout = device.device.createPipelineLayout({
             bindGroupLayouts: [this.displayBindGroupLayout],

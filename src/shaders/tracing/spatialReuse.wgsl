@@ -1,4 +1,4 @@
-@group(0) @binding(0) var frame : texture_storage_2d<rgba16float, write>;
+@group(0) @binding(0) var<storage, read_write> frame: array<vec2u>;
 @group(0) @binding(1) var<uniform> ubo: UBO;
 @group(0) @binding(2) var<storage, read> gBufferTex : array<vec2u>;
 @group(0) @binding(3) var<storage, read> gBufferAttri : array<vec4f>;
@@ -10,10 +10,12 @@
 // #include <BSDF.wgsl>;
 
 override ENABLE_GI: bool = true;
+override WIDTH: u32;
+override HEIGHT: u32;
 
 @compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
-    let screen_size: vec2u = textureDimensions(frame);
+    let screen_size = vec2u(WIDTH, HEIGHT);
     if any(GlobalInvocationID.xy >= screen_size) {
         return;
     }
@@ -28,7 +30,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     loadReservoir(&previousReservoir, launchIndex, &reservoirDI, &reservoirGI, &_seed);
 
     if reservoirDI.W < 0.0 {
-        textureStore(frame, GlobalInvocationID.xy, vec4f(0.));
+        return;
     }
     seed = tea(GlobalInvocationID.y * screen_size.x + GlobalInvocationID.x, _seed, 4);
     var pointInfo: PointInfo;
@@ -69,7 +71,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
                 wo = normalize(wo);
                 if dot(wo, pointInfo.normalShading) > 0. {
                     // neighbor_reservoirDI.M = min(neighbor_reservoirDI.M, 64);
-                    geometryTerm_luminance = light.intensity / (dist * dist);
+                    geometryTerm_luminance = light.intensity * dot(wo, pointInfo.normalShading) / (dist * dist);
                     bsdfLuminance = BSDFLuminance(pointInfo, wo, wi);
                     pHat = geometryTerm_luminance * bsdfLuminance;
                     neighbor_reservoirDI.w_sum = pHat * neighbor_reservoirDI.W * f32(neighbor_reservoirDI.M);
@@ -96,21 +98,21 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
         wo = light.position - pointInfo.pos;
         dist = length(wo);
         wo = normalize(wo);
-        geometryTerm_luminance = light.intensity / (dist * dist);
+        geometryTerm_luminance = light.intensity * dot(wo, pointInfo.normalShading) / (dist * dist);
         bsdfLuminance = BSDFLuminance(pointInfo, wo, wi);
         pHat = geometryTerm_luminance * bsdfLuminance;
         if pHat <= 0.0 {
             reservoirDI.W = 0.0;
             // reservoirDI.w_sum = 0.0;
         } else {
-            reservoirDI.W = reservoirDI.w_sum / max(0.02, pHat) / f32(reservoirDI.M);
+            reservoirDI.W = reservoirDI.w_sum / max(0.01, pHat) / f32(reservoirDI.M);
         }
         if ENABLE_GI {
-            reservoirGI.W = reservoirGI.w_sum / max(0.02, luminance(reservoirGI.Lo)) / f32(reservoirGI.M);
+            reservoirGI.W = reservoirGI.w_sum / max(0.01, luminance(reservoirGI.Lo)) / f32(reservoirGI.M);
         }
     }
 
 
-    // textureStore(frame, GlobalInvocationID.xy, vec4f(color, 1.));
+    // storeColor(&frame, launchIndex, vec4f(color, 1.0));
     storeReservoir(&currentReservoir, launchIndex, reservoirDI, reservoirGI, seed);
 }

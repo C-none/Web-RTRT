@@ -18,7 +18,7 @@ class rayTracing {
     gBufferTex: GPUBuffer;
     gBufferAttri: GPUBuffer;
     previousGBufferAttri: GPUBuffer;
-    outputTexture: GPUTexture;
+    outputBuffer: GPUBuffer;
     uniformBuffer: GPUBuffer;
     lightBuffer: GPUBuffer;
     sampler: GPUSampler;
@@ -58,7 +58,7 @@ class rayTracing {
         this.gBufferTex = buffers.gBufferTex;
         this.gBufferAttri = buffers.gBufferAttri;
         this.previousGBufferAttri = buffers.previousGBufferAttri;
-        this.outputTexture = buffers.currentFrameBuffer;
+        this.outputBuffer = buffers.currentFrameBuffer;
         this.sampler = this.device.device.createSampler({
             addressModeU: "mirror-repeat",
             addressModeV: "mirror-repeat",
@@ -71,8 +71,20 @@ class rayTracing {
             size: 4 * 4,// random seed(u32), origin.xyz(f32)
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
-        this.currentReservoir = buffers.currentReservoir;
-        this.previousReservoir = buffers.previousReservoir;
+        let originWidth = Math.floor(device.canvas.width / device.upscaleRatio);
+        let originHeight = Math.floor(device.canvas.height / device.upscaleRatio);
+        // LightDI/GI,wDI,WDI,MDIGI.xy
+        // Xvisible.xyz Nvisible.xy
+        // Xsample.xyz Nsample.xy
+        // wGI,WGI, Lo.xy, (Lo.z,seed)
+        this.currentReservoir = device.device.createBuffer({
+            size: 16 * (4 * originWidth * originHeight),
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+        });
+        this.previousReservoir = device.device.createBuffer({
+            size: 16 * (4 * originWidth * originHeight),
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+        });
     }
     lightPosition = Array<Float32Array>(this.lightCount);
     lightVelocity = Array<Array<number>>(this.lightCount);
@@ -94,27 +106,29 @@ class rayTracing {
         };
         let lights = Array<light>(cnt);
         const dimension = Math.sqrt(cnt);
-        // lights[0] = new light(new Float32Array([0, 18, 3.5]), new Float32Array([1, 1, 1]), 2500, 0);
-        lights[0] = new light(new Float32Array([0, 5.5, 0]), new Float32Array([1, 1, 1]), 80, 0);
+        lights[0] = new light(new Float32Array([0, 18, 3.5]), new Float32Array([1, 1, 1]), 2500, 0);
+        // lights[0] = new light(new Float32Array([0, 5.5, 0]), new Float32Array([1, 1, 1]), 80, 0);
         // lights[1] = new light(new Float32Array([-4, 5, 0]), new Float32Array([1, 0.9, 0.4]), 60, 1);
         // generate light in grid
         // for (let i = 0; i < cnt; i++) {
-        //     let x = (i % dimension) / dimension * 12 - 6;
-        //     let y = 5;
-        //     let z = Math.floor(i / dimension) / dimension * 12 - 6;
-        //     // generate color correlated to the position randomly
-        //     let r = Math.abs(x) / 6;
-        //     let g = 0.5;
-        //     let b = Math.abs(z) / 6;
-        //     // let x = Math.random() * 10 - 5;
-        //     // let y = Math.random() * 8;
-        //     // let z = Math.random() * 2 - 1;
-        //     // let r = Math.random() * 0.7 + 0.3;
-        //     // let g = Math.random() * 0.7 + 0.3;
-        //     // let b = Math.random() * 0.7 + 0.3;
-        //     let intensity = Math.random() * 10 + 20;
+        //     // let x = (i % dimension) / dimension * 12 - 6;
+        //     // let y = 5;
+        //     // let z = Math.floor(i / dimension) / dimension * 12 - 6;
+        //     // // generate color correlated to the position randomly
+        //     // let r = Math.abs(x) / 6;
+        //     // let g = 0.5;
+        //     // let b = Math.abs(z) / 6;
+        //     let x = Math.random() * 10 - 5;
+        //     let y = Math.random() * 8;
+        //     let z = Math.random() * 2 - 1;
+        //     let r = Math.random() * 0.7 + 0.3;
+        //     let g = Math.random() * 0.7 + 0.3;
+        //     let b = Math.random() * 0.7 + 0.3;
+        //     let intensity = Math.random() * 1 + 3;
         //     lights[i] = new light(new Float32Array([x, y, z]), new Float32Array([r, g, b]), intensity, i);
         // }
+
+
 
         this.lightBuffer = this.device.device.createBuffer({
             label: 'light buffer',
@@ -188,7 +202,7 @@ class rayTracing {
                 {// output texture
                     binding: 0,
                     visibility: GPUShaderStage.COMPUTE,
-                    storageTexture: { access: 'write-only', format: this.outputTexture.format, },
+                    buffer: { type: 'storage', },
                 },
                 {// camera buffer
                     binding: 1,
@@ -303,7 +317,7 @@ class rayTracing {
                 {// output texture
                     binding: 0,
                     visibility: GPUShaderStage.COMPUTE,
-                    storageTexture: { access: 'write-only', format: this.outputTexture.format, },
+                    buffer: { type: 'storage', },
                 },
                 {// uniform buffer
                     binding: 1,
@@ -328,7 +342,7 @@ class rayTracing {
                 {// output texture
                     binding: 0,
                     visibility: GPUShaderStage.COMPUTE,
-                    storageTexture: { access: 'write-only', format: this.outputTexture.format, },
+                    buffer: { type: 'storage', },
                 },
                 {// uniform buffer
                     binding: 1,
@@ -349,6 +363,8 @@ class rayTracing {
         });
     }
     private async buildPipeline() {
+        let originWidth = Math.floor(this.device.canvas.width / this.device.upscaleRatio);
+        let originHeight = Math.floor(this.device.canvas.height / this.device.upscaleRatio);
         const sampleInitModule = this.device.device.createShaderModule({
             label: 'rayGen.wgsl',
             code: shaders.get("rayGen.wgsl").replace(/TREE_DEPTH/g, this.model.bvhMaxDepth.toString()).replace(/LIGHT_COUNT/g, this.lightCount.toString()),
@@ -370,6 +386,9 @@ class rayTracing {
                 entryPoint: 'main',
                 constants: {
                     halfConeAngle: this.camera.camera.fov * Math.PI / 180 / (this.device.canvas.height / this.device.upscaleRatio * 2),
+                    ENABLE_GI: this.GI_FLAG,
+                    WIDTH: originWidth,
+                    HEIGHT: originHeight,
                 }
             }
         });
@@ -380,7 +399,11 @@ class rayTracing {
             compute: {
                 module: spatialReuseModule,
                 entryPoint: 'main',
-                constants: { ENABLE_GI: this.GI_FLAG, }
+                constants: {
+                    ENABLE_GI: this.GI_FLAG,
+                    WIDTH: originWidth,
+                    HEIGHT: originHeight,
+                }
             },
         });
         this.pipelineAccumulate = await this.device.device.createComputePipelineAsync({
@@ -390,7 +413,11 @@ class rayTracing {
             compute: {
                 module: accumulateModule,
                 entryPoint: 'main',
-                constants: { ENABLE_GI: this.GI_FLAG, }
+                constants: {
+                    ENABLE_GI: this.GI_FLAG,
+                    WIDTH: originWidth,
+                    HEIGHT: originHeight,
+                }
             }
         });
     }
@@ -401,7 +428,7 @@ class rayTracing {
             entries: [
                 {// output texture
                     binding: 0,
-                    resource: this.outputTexture.createView(),
+                    resource: { buffer: this.outputBuffer, }
                 },
                 {// camera buffer
                     binding: 1,
@@ -519,7 +546,7 @@ class rayTracing {
             entries: [
                 {// output texture
                     binding: 0,
-                    resource: this.outputTexture.createView(),
+                    resource: { buffer: this.outputBuffer, }
                 },
                 {// uniform buffer
                     binding: 1,
@@ -555,7 +582,7 @@ class rayTracing {
             entries: [
                 {// output texture
                     binding: 0,
-                    resource: this.outputTexture.createView(),
+                    resource: { buffer: this.outputBuffer, }
                 },
                 {// uniform buffer
                     binding: 1,
@@ -616,7 +643,7 @@ class rayTracing {
         sampleInitEncoder.setBindGroup(1, this.bindingGroupReservoir);
         sampleInitEncoder.setBindGroup(2, this.bindingGroupLight);
         sampleInitEncoder.setBindGroup(3, this.bindingGroupAccelerationStructure);
-        sampleInitEncoder.dispatchWorkgroups(Math.ceil(this.outputTexture.width / 8), Math.ceil(this.outputTexture.height / 8), 1);
+        sampleInitEncoder.dispatchWorkgroups(Math.ceil(this.vBuffer.width / 8), Math.ceil(this.vBuffer.height / 8), 1);
         sampleInitEncoder.end();
 
         for (let i = 0; i < this.spatialReuseIteration; i++) {
@@ -625,7 +652,7 @@ class rayTracing {
             spatialReuseEncoder.setBindGroup(0, this.bindingGroupReuse);
             spatialReuseEncoder.setBindGroup(1, i % 2 == 0 ? this.bindingGroupReservoirInverse : this.bindingGroupReservoir);
             spatialReuseEncoder.setBindGroup(2, this.bindingGroupLight);
-            spatialReuseEncoder.dispatchWorkgroups(Math.ceil(this.outputTexture.width / 8), Math.ceil(this.outputTexture.height / 8), 1);
+            spatialReuseEncoder.dispatchWorkgroups(Math.ceil(this.vBuffer.width / 8), Math.ceil(this.vBuffer.height / 8), 1);
             spatialReuseEncoder.end();
         }
 
@@ -635,7 +662,7 @@ class rayTracing {
         accumulateEncoder.setBindGroup(1, this.spatialReuseIteration % 2 == 0 ? this.bindingGroupReservoirInverse : this.bindingGroupReservoir);
         accumulateEncoder.setBindGroup(2, this.bindingGroupLight);
         accumulateEncoder.setBindGroup(3, this.bindingGroupAccelerationStructure);
-        accumulateEncoder.dispatchWorkgroups(Math.ceil(this.outputTexture.width / 8), Math.ceil(this.outputTexture.height / 8), 1);
+        accumulateEncoder.dispatchWorkgroups(Math.ceil(this.vBuffer.width / 8), Math.ceil(this.vBuffer.height / 8), 1);
         accumulateEncoder.end();
 
         if (this.spatialReuseIteration % 2 == 0) {
