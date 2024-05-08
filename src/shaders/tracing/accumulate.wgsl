@@ -75,5 +75,5 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
         color += reservoirGI.W * bsdf * geometryTerm;
         illuminace += reservoirGI.W * geometryTerm;
     }
-    storeColor(&frame, launchIndex, color);
+    storeColor(&frame, launchIndex, illuminace);
 }

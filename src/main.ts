@@ -33,8 +33,8 @@ class Application {
         this.rayTracing = new rayTracing(this.device, this.model, this.camera, this.buffers);
         await this.rayTracing.init();
 
-        // this.denoiser = new Denoiser(this.device, this.buffers);
-        // await this.denoiser.init();
+        this.denoiser = new Denoiser(this.device, this.buffers);
+        await this.denoiser.init();
 
         this.display = new Display(this.device, this.buffers, this.camera);
 
@@ -48,7 +48,7 @@ class Application {
 
         this.vBuffer.record(commandEncoder);
         this.rayTracing.record(commandEncoder);
-        // this.denoiser.record(commandEncoder);
+        this.denoiser.record(commandEncoder);
         this.display.record(commandEncoder);
 
         this.buffers.update(commandEncoder, this.device);
