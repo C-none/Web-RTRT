@@ -54,9 +54,9 @@ fn combineReservoirsGI(reservoir: ptr<function,ReservoirGI>, other: ReservoirGI)
 }
 
 @group(1) @binding(0) var<storage, read_write> currentReservoir: array<array<u32,16>>;
-@group(1) @binding(1) var<storage, read> previousReservoir: array<array<u32,16>>;
+@group(1) @binding(1) var<storage, read_write> previousReservoir: array<array<u32,16>>;
 
-fn loadReservoir(reservoir: ptr<storage,array<array<u32,16>>>, idx: u32, reservoirDI: ptr<function,ReservoirDI>, reservoirGI: ptr<function,ReservoirGI>, seed: ptr<function,u32>) {
+fn loadReservoir(reservoir: ptr<storage,array<array<u32,16>>,read_write>, idx: u32, reservoirDI: ptr<function,ReservoirDI>, reservoirGI: ptr<function,ReservoirGI>, seed: ptr<function,u32>) {
     // LightDI/GI,wDI,WDI,MDIGI.xy
     // Xvisible.xyz Nvisible.xy
     // Xsample.xyz Nsample.xy

@@ -18,6 +18,8 @@ import slopeAABBTest from './tracing/slopeAABBTest.wgsl?raw';
 import spatialReuse from './tracing/spatialReuse.wgsl?raw';
 import accumulate from './tracing/accumulate.wgsl?raw';
 
+import denoiseCommon from './denoise/denoiseCommon.wgsl?raw';
+import temperalAccum from './denoise/temperalAccum.wgsl?raw';
 import denoiseAccum from './denoise/denoiseAccum.wgsl?raw';
 
 import display from './display.wgsl?raw';
@@ -41,12 +43,15 @@ class ShaderManager {
         "BSDF.wgsl": BSDF,
         "vBuffer.wgsl": vBuffer,
         "rayGen.wgsl": rayGen,
-        "display.wgsl": display,
         "slopeAABBTest.wgsl": slopeAABBTest,
         "spatialReuse.wgsl": spatialReuse,
         "accumulate.wgsl": accumulate,
 
+        "denoiseCommon.wgsl": denoiseCommon,
+        "temperalAccum.wgsl": temperalAccum,
         "denoiseAccum.wgsl": denoiseAccum,
+
+        "display.wgsl": display,
     }
     constructor() {
         for (const name in this.shaders) {

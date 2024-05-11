@@ -94,7 +94,6 @@ fn unpackTriangle(triangle: PrimaryHitInfo, origin: vec3f, halfConeAngle: f32) -
 fn unpackTriangleIndirect(triangle: PrimaryHitInfo, origin: vec3f) -> PointInfo {
 
     let offset = vec3u(indices[triangle.primId * 3], indices[triangle.primId * 3 + 1], indices[triangle.primId * 3 + 2]);
-    let vtx = array<vec4f, 3>(vertices[offset.x], vertices[offset.y], vertices[offset.z]);
     let geo = array<GeometryInfo, 3>(geometries[offset.x], geometries[offset.y], geometries[offset.z]);
 
     var retInfo: PointInfo = PointInfo();
@@ -106,6 +105,7 @@ fn unpackTriangleIndirect(triangle: PrimaryHitInfo, origin: vec3f) -> PointInfo 
     // retInfo.metallicRoughness = vec2f(0.9, 0.5);
     retInfo.baseColor = sampleTexIndirect(albedo, uv, albedoId, vec4f(1.)).xyz;
 
+    let vtx = array<vec4f, 3>(vertices[offset.x], vertices[offset.y], vertices[offset.z]);
     retInfo.pos = vec3f(triangle.baryCoord.x * vtx[0].xyz + triangle.baryCoord.y * vtx[1].xyz + triangle.baryCoord.z * vtx[2].xyz);
     let direction = normalize(retInfo.pos - origin);
     var normalGeo = normalize(cross(vtx[1].xyz - vtx[0].xyz, vtx[2].xyz - vtx[0].xyz));

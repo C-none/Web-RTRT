@@ -1,7 +1,7 @@
 @group(0) @binding(0) var<storage, read_write> frame: array<vec2u>;
 @group(0) @binding(1) var<uniform> ubo: UBO;
-@group(0) @binding(2) var<storage, read> gBufferTex : array<vec2u>;
-@group(0) @binding(3) var<storage, read> gBufferAttri : array<vec4f>;
+@group(0) @binding(2) var<storage, read_write> gBufferTex : array<vec2u>;
+@group(0) @binding(3) var<storage, read_write> gBufferAttri : array<vec4f>;
 
 
 // #include <common.wgsl>;
@@ -15,7 +15,7 @@ override HEIGHT: u32;
 
 @compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
-    let screen_size = vec2u(WIDTH, HEIGHT);
+    screen_size = vec2u(WIDTH, HEIGHT);
     if any(GlobalInvocationID.xy >= screen_size) {
         return;
     }
@@ -23,13 +23,14 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     let origin = ubo.origin;
 
     let screen_pos = vec2f(GlobalInvocationID.xy) + 0.5;
-    let launchIndex = u32(screen_pos.y) * screen_size.x + u32(screen_pos.x);
+    let launchIndex = getCoord(screen_pos);
     var reservoirDI = ReservoirDI();
     var reservoirGI = ReservoirGI();
     var _seed: u32;
     loadReservoir(&previousReservoir, launchIndex, &reservoirDI, &reservoirGI, &_seed);
 
     if reservoirDI.W < 0.0 {
+        storeReservoir(&currentReservoir, launchIndex, reservoirDI, reservoirGI, seed);
         return;
     }
     seed = tea(GlobalInvocationID.y * screen_size.x + GlobalInvocationID.x, _seed, 4);
@@ -51,10 +52,10 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     for (var i = 0u; i < 5; i = i + 1u) {
         let neighbor_pos = screen_pos + samplingDisk() * 20.0;
         // let neighbor_pos = screen_pos + bias2[i] * 2.;
-        if any(neighbor_pos < vec2f(0.0)) || any(neighbor_pos >= vec2f(screen_size)) {
+        let neighbor_launchIndex = getCoord(neighbor_pos);
+        if !validateCoord(neighbor_pos) {
             continue;
         }
-        let neighbor_launchIndex = u32(neighbor_pos.y) * screen_size.x + u32(neighbor_pos.x);
         var neighbor_reservoirDI = ReservoirDI();
         var neighbor_reservoirGI = ReservoirGI();
         loadReservoir(&previousReservoir, neighbor_launchIndex, &neighbor_reservoirDI, &neighbor_reservoirGI, &_seed);
@@ -71,14 +72,14 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
                 wo = normalize(wo);
                 if dot(wo, pointInfo.normalShading) > 0. {
                     // neighbor_reservoirDI.M = min(neighbor_reservoirDI.M, 64);
-                    geometryTerm_luminance = light.intensity * dot(wo, pointInfo.normalShading) / (dist * dist);
+                    geometryTerm_luminance = light.intensity / (dist * dist);
                     bsdfLuminance = BSDFLuminance(pointInfo, wo, wi);
                     pHat = geometryTerm_luminance * bsdfLuminance;
                     neighbor_reservoirDI.w_sum = pHat * neighbor_reservoirDI.W * f32(neighbor_reservoirDI.M);
                     combineReservoirsDI(&reservoirDI, neighbor_reservoirDI);
                 }
             }
-            if ENABLE_GI {
+            if ENABLE_GI && neighbor_reservoirGI.W > 0. {
                 wo = neighbor_reservoirGI.xs - pointInfo.pos;
                 dist = length(wo);
                 wo = normalize(wo);
@@ -98,7 +99,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
         wo = light.position - pointInfo.pos;
         dist = length(wo);
         wo = normalize(wo);
-        geometryTerm_luminance = light.intensity * dot(wo, pointInfo.normalShading) / (dist * dist);
+        geometryTerm_luminance = light.intensity / (dist * dist);
         bsdfLuminance = BSDFLuminance(pointInfo, wo, wi);
         pHat = geometryTerm_luminance * bsdfLuminance;
         if pHat <= 0.0 {
@@ -113,6 +114,6 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     }
 
 
-    // storeColor(&frame, launchIndex, vec4f(color, 1.0));
+    // storeColor(&frame, launchIndex, vec3f(reservoirDI.W) / 2);
     storeReservoir(&currentReservoir, launchIndex, reservoirDI, reservoirGI, seed);
 }

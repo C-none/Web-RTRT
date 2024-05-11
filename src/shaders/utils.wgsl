@@ -34,3 +34,39 @@ fn normalDecode(encoded: u32) -> vec3f {
 //     let denom = 1.0 + dot(XY, XY);
 //     return vec3f(2.0 * XY, denom - 2) / denom;
 // }
+
+fn luminance(color: vec3f) -> f32 {
+    return dot(color, vec3f(0.2126, 0.7152, 0.0722));
+}
+
+struct PointAttri {
+    pos: vec3f,
+    normalShading: vec3f,
+};
+
+fn loadGBufferAttri(gBufferAttri: ptr<storage,array<vec4f>,read_write>, idx: u32) -> PointAttri {
+    let attri = (*gBufferAttri)[idx];
+    var ret: PointAttri;
+    ret.pos = attri.xyz;
+    ret.normalShading = normalDecode(bitcast<u32>(attri.w));
+    return ret;
+}
+
+fn storeColor(buffer: ptr<storage,array<vec2u>,read_write>, idx: u32, color: vec3f) {
+    (*buffer)[idx] = vec2u(pack2x16float(color.xy), pack2x16float(vec2f(color.z, 0)));
+}
+
+fn loadColor(buffer: ptr<storage,array<vec2u>,read_write>, idx: u32) -> vec3f {
+    let color = (*buffer)[idx];
+    return vec3f(unpack2x16float(color.x), unpack2x16float(color.y).x);
+}
+
+var<private> screen_size:vec2u;
+
+fn validateCoord(coord: vec2f) -> bool {
+    return all(coord >= vec2f(0)) && all(coord < vec2f(screen_size));
+}
+
+fn getCoord(coord: vec2f) -> u32 {
+    return u32(coord.x) + u32(coord.y) * screen_size.x;
+}

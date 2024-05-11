@@ -61,19 +61,4 @@ fn loadGBuffer(idx: u32, pointInfo: ptr<function,PointInfo>) {
     (*pointInfo).pos = attri.xyz;
     (*pointInfo).normalShading = normalDecode(bitcast<u32>(attri.w));
 }
-struct PointAttri {
-    pos: vec3f,
-    normalShading: vec3f,
-};
 
-fn loadGBufferAttri(gBufferAttri: ptr<storage,array<vec4f>>, idx: u32) -> PointAttri {
-    let attri = (*gBufferAttri)[idx];
-    var ret: PointAttri;
-    ret.pos = attri.xyz;
-    ret.normalShading = normalDecode(bitcast<u32>(attri.w));
-    return ret;
-}
-
-fn storeColor(buffer: ptr<storage,array<vec2u>,read_write>, idx: u32, color: vec3f) {
-    (*buffer)[idx] = vec2u(pack2x16float(color.xy), pack2x16float(vec2f(color.z, 0)));
-}

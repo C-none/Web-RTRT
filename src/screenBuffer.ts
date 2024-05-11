@@ -5,6 +5,7 @@ class BufferPool {
     previousFrameBuffer: GPUBuffer;
     previousDisplayBuffer: GPUTexture;
     depthTexture: GPUTexture;
+    previousDepthTexture: GPUTexture;
     vBuffer: GPUTexture;
     motionVec: GPUTexture;
 
@@ -30,7 +31,12 @@ class BufferPool {
         this.depthTexture = device.device.createTexture({
             size: { width: originWidth, height: originHeight },
             format: "depth32float",
-            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+            usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_SRC,
+        });
+        this.previousDepthTexture = device.device.createTexture({
+            size: { width: originWidth, height: originHeight },
+            format: "depth32float",
+            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
         });
         this.vBuffer = device.device.createTexture({
             size: { width: originWidth, height: originHeight },
@@ -61,6 +67,7 @@ class BufferPool {
         let originHeight = Math.floor(device.canvas.height / device.upscaleRatio);
         encode.copyBufferToBuffer(this.gBufferAttri, 0, this.previousGBufferAttri, 0, 4 * 4 * originWidth * originHeight);
         encode.copyBufferToBuffer(this.currentFrameBuffer, 0, this.previousFrameBuffer, 0, 2 * 4 * originWidth * originHeight);
+        encode.copyTextureToTexture({ texture: this.depthTexture, }, { texture: this.previousDepthTexture, }, { width: originWidth, height: originHeight });
         encode.copyTextureToTexture({ texture: device.context.getCurrentTexture(), }, { texture: this.previousDisplayBuffer, }, { width: device.canvas.width, height: device.canvas.height });
     }
 }

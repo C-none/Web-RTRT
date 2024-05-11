@@ -33,7 +33,7 @@ class Application {
         this.rayTracing = new rayTracing(this.device, this.model, this.camera, this.buffers);
         await this.rayTracing.init();
 
-        this.denoiser = new Denoiser(this.device, this.buffers);
+        this.denoiser = new Denoiser(this.device, this.buffers, this.camera);
         await this.denoiser.init();
 
         this.display = new Display(this.device, this.buffers, this.camera);

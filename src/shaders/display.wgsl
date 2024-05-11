@@ -3,8 +3,8 @@
 @group(0) @binding(2) var samp : sampler;
 @group(0) @binding(3) var motionVec : texture_2d<u32>;
 @group(0) @binding(4) var depthBuffer : texture_depth_2d;
-@group(0) @binding(5) var<storage, read> currentFrame : array<vec2u>;
-@group(0) @binding(6) var<storage, read> previousFrame : array<vec2u>;
+@group(0) @binding(5) var<storage, read_write> currentFrame : array<vec2u>;
+@group(0) @binding(6) var<storage, read_write> previousFrame : array<vec2u>;
 
 override zNear: f32 = 0.01;
 override zFar: f32 = 50.0;
@@ -16,10 +16,11 @@ fn ACESToneMapping(color: vec3f, adapted_lum: f32) -> vec3f {
     const D = 0.59;
     const E = 0.14;
     let ret = color * adapted_lum;
-    return (ret * (A * ret + B)) / (ret * (C * ret + D) + E);
+    // return (ret * (A * ret + B)) / (ret * (C * ret + D) + E);
+    return color;
 }
 
-fn readColor(buffer: ptr<storage,array<vec2u>>, idx: u32) -> vec3f {
+fn readColor(buffer: ptr<storage,array<vec2u>,read_write>, idx: u32) -> vec3f {
     let color = vec3f(unpack2x16float(buffer[idx].x).xy, unpack2x16float(buffer[idx].y).x);
     return color;
 }
@@ -37,10 +38,10 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     let origin_pos_idx: u32 = origin_pos.y * origin_size.x + origin_pos.x;
 
     // linear depth
-    let depth = (textureSampleLevel(depthBuffer, samp, vec2f(origin_pos) / vec2f(origin_size), 0) + 1.0) / 2.0;
-    // let depth = (textureLoad(depthBuffer, origin_pos, 0) + 1.0) / 2.0;
+    // let depth = (textureSampleLevel(depthBuffer, samp, vec2f(origin_pos) / vec2f(origin_size), 0) + 1.0) / 2.0;
+    let depth = (textureLoad(depthBuffer, origin_pos, 0) + 1.0) / 2.0;
     let zlinear = zNear * zFar / (zFar + depth * (zNear - zFar));
-    // textureStore(currentDisplay, screen_pos, vec4f(vec3f(zlinear / 20.0), 1.0));
+    // textureStore(currentDisplay, screen_pos, vec4f(vec3f(textureLoad(depthBuffer, origin_pos, 0)), 1.0));
 
     // [0, width] x [0, height] range of motion vector
     // .------> X

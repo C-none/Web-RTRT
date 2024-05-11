@@ -8,7 +8,7 @@ class rayTracing {
     device: webGPUDevice;
     model: gltfmodel;
     camera: CameraManager;
-    lightCount: number = 1;
+    lightCount: number = 8;
     spatialReuseIteration: number = 2;
     GI_FLAG: number = 1;
     dynamicLight: boolean = true;
@@ -106,27 +106,27 @@ class rayTracing {
         };
         let lights = Array<light>(cnt);
         const dimension = Math.sqrt(cnt);
-        lights[0] = new light(new Float32Array([0, 18, 3.5]), new Float32Array([1, 1, 1]), 2500, 0);
+        // lights[0] = new light(new Float32Array([0, 18, 3.5]), new Float32Array([1, 1, 1]), 2500, 0);
         // lights[0] = new light(new Float32Array([0, 5.5, 0]), new Float32Array([1, 1, 1]), 80, 0);
         // lights[1] = new light(new Float32Array([-4, 5, 0]), new Float32Array([1, 0.9, 0.4]), 60, 1);
         // generate light in grid
-        // for (let i = 0; i < cnt; i++) {
-        //     // let x = (i % dimension) / dimension * 12 - 6;
-        //     // let y = 5;
-        //     // let z = Math.floor(i / dimension) / dimension * 12 - 6;
-        //     // // generate color correlated to the position randomly
-        //     // let r = Math.abs(x) / 6;
-        //     // let g = 0.5;
-        //     // let b = Math.abs(z) / 6;
-        //     let x = Math.random() * 10 - 5;
-        //     let y = Math.random() * 8;
-        //     let z = Math.random() * 2 - 1;
-        //     let r = Math.random() * 0.7 + 0.3;
-        //     let g = Math.random() * 0.7 + 0.3;
-        //     let b = Math.random() * 0.7 + 0.3;
-        //     let intensity = Math.random() * 1 + 3;
-        //     lights[i] = new light(new Float32Array([x, y, z]), new Float32Array([r, g, b]), intensity, i);
-        // }
+        for (let i = 0; i < cnt; i++) {
+            // let x = (i % dimension) / dimension * 12 - 6;
+            // let y = 5;
+            // let z = Math.floor(i / dimension) / dimension * 12 - 6;
+            // // generate color correlated to the position randomly
+            // let r = Math.abs(x) / 6;
+            // let g = 0.5;
+            // let b = Math.abs(z) / 6;
+            let x = Math.random() * 10 - 5;
+            let y = Math.random() * 8;
+            let z = Math.random() * 2 - 1;
+            let r = Math.random() * 0.7 + 0.3;
+            let g = Math.random() * 0.7 + 0.3;
+            let b = Math.random() * 0.7 + 0.3;
+            let intensity = Math.random() * 5 + 15;
+            lights[i] = new light(new Float32Array([x, y, z]), new Float32Array([r, g, b]), intensity, i);
+        }
 
 
 
@@ -212,7 +212,7 @@ class rayTracing {
                 {// geometry buffer
                     binding: 2,
                     visibility: GPUShaderStage.COMPUTE,
-                    buffer: { type: 'read-only-storage', },
+                    buffer: { type: 'storage', },
                 },
                 {// albedo map
                     binding: 3,
@@ -257,7 +257,7 @@ class rayTracing {
                 {// previous gBufferAttri
                     binding: 11,
                     visibility: GPUShaderStage.COMPUTE,
-                    buffer: { type: 'read-only-storage', },
+                    buffer: { type: 'storage', },
                 },
                 {// motion vector
                     binding: 12,
@@ -297,7 +297,7 @@ class rayTracing {
                 {// previous reservoir
                     binding: 1,
                     visibility: GPUShaderStage.COMPUTE,
-                    buffer: { type: 'read-only-storage', },
+                    buffer: { type: 'storage', },
                 },
             ]
         });
@@ -327,12 +327,12 @@ class rayTracing {
                 {// gBufferTex
                     binding: 2,
                     visibility: GPUShaderStage.COMPUTE,
-                    buffer: { type: 'read-only-storage', },
+                    buffer: { type: 'storage', },
                 },
                 {// reservoir buffer
                     binding: 3,
                     visibility: GPUShaderStage.COMPUTE,
-                    buffer: { type: 'read-only-storage', },
+                    buffer: { type: 'storage', },
                 }
             ]
         });
@@ -352,12 +352,12 @@ class rayTracing {
                 {// gBufferTex
                     binding: 2,
                     visibility: GPUShaderStage.COMPUTE,
-                    buffer: { type: 'read-only-storage', },
+                    buffer: { type: 'storage', },
                 },
                 {// gBufferAttri
                     binding: 3,
                     visibility: GPUShaderStage.COMPUTE,
-                    buffer: { type: 'read-only-storage', },
+                    buffer: { type: 'storage', },
                 }
             ]
         });
@@ -530,6 +530,20 @@ class rayTracing {
                 },
             ]
         });
+        this.bindingGroupReservoirInverse = this.device.device.createBindGroup({
+            label: 'rayTracingReservoirInverse',
+            layout: this.bindGroupLayoutReservoir,
+            entries: [
+                {// current reservoir
+                    binding: 0,
+                    resource: { buffer: this.previousReservoir, },
+                },
+                {// previous reservoir
+                    binding: 1,
+                    resource: { buffer: this.currentReservoir, },
+                },
+            ]
+        });
         this.bindingGroupLight = this.device.device.createBindGroup({
             label: 'rayTracingLight',
             layout: this.bindGroupLayoutLight,
@@ -560,20 +574,6 @@ class rayTracing {
                     binding: 3,
                     resource: { buffer: this.gBufferAttri, },
                 }
-            ]
-        });
-        this.bindingGroupReservoirInverse = this.device.device.createBindGroup({
-            label: 'rayTracingReservoirInverse',
-            layout: this.bindGroupLayoutReservoir,
-            entries: [
-                {// current reservoir
-                    binding: 0,
-                    resource: { buffer: this.previousReservoir, },
-                },
-                {// previous reservoir
-                    binding: 1,
-                    resource: { buffer: this.currentReservoir, },
-                },
             ]
         });
         this.bindingGroupAccumulate = this.device.device.createBindGroup({
@@ -626,7 +626,7 @@ class rayTracing {
                         this.lightVelocity[i][j] = -Math.abs(this.lightVelocity[i][j]);
                     }
                     // this.lightPosition[i][j] += this.lightVelocity[i][j] * 0.015 - (this.lightPosition[i][j] - center[j]) * 0.0015;
-                    this.lightPosition[i][j] += this.lightVelocity[i][j] * 0.03;
+                    this.lightPosition[i][j] += this.lightVelocity[i][j] * 0.015;
                 }
                 // write light position
                 this.device.device.queue.writeBuffer(this.lightBuffer, 4 * (4 + 8 * i), this.lightPosition[i]);
@@ -635,6 +635,9 @@ class rayTracing {
     }
 
     async record(commandEncoder: GPUCommandEncoder) {
+        let originWidth = Math.floor(this.device.canvas.width / this.device.upscaleRatio);
+        let originHeight = Math.floor(this.device.canvas.height / this.device.upscaleRatio);
+
         this.updateUBO();
 
         const sampleInitEncoder = commandEncoder.beginComputePass();
@@ -643,7 +646,7 @@ class rayTracing {
         sampleInitEncoder.setBindGroup(1, this.bindingGroupReservoir);
         sampleInitEncoder.setBindGroup(2, this.bindingGroupLight);
         sampleInitEncoder.setBindGroup(3, this.bindingGroupAccelerationStructure);
-        sampleInitEncoder.dispatchWorkgroups(Math.ceil(this.vBuffer.width / 8), Math.ceil(this.vBuffer.height / 8), 1);
+        sampleInitEncoder.dispatchWorkgroups(Math.ceil(originWidth / 8), Math.ceil(originHeight / 8), 1);
         sampleInitEncoder.end();
 
         for (let i = 0; i < this.spatialReuseIteration; i++) {
@@ -652,7 +655,7 @@ class rayTracing {
             spatialReuseEncoder.setBindGroup(0, this.bindingGroupReuse);
             spatialReuseEncoder.setBindGroup(1, i % 2 == 0 ? this.bindingGroupReservoirInverse : this.bindingGroupReservoir);
             spatialReuseEncoder.setBindGroup(2, this.bindingGroupLight);
-            spatialReuseEncoder.dispatchWorkgroups(Math.ceil(this.vBuffer.width / 8), Math.ceil(this.vBuffer.height / 8), 1);
+            spatialReuseEncoder.dispatchWorkgroups(Math.ceil(originWidth / 8), Math.ceil(originHeight / 8), 1);
             spatialReuseEncoder.end();
         }
 
@@ -662,13 +665,10 @@ class rayTracing {
         accumulateEncoder.setBindGroup(1, this.spatialReuseIteration % 2 == 0 ? this.bindingGroupReservoirInverse : this.bindingGroupReservoir);
         accumulateEncoder.setBindGroup(2, this.bindingGroupLight);
         accumulateEncoder.setBindGroup(3, this.bindingGroupAccelerationStructure);
-        accumulateEncoder.dispatchWorkgroups(Math.ceil(this.vBuffer.width / 8), Math.ceil(this.vBuffer.height / 8), 1);
+        accumulateEncoder.dispatchWorkgroups(Math.ceil(originWidth / 8), Math.ceil(originHeight / 8), 1);
         accumulateEncoder.end();
 
         if (this.spatialReuseIteration % 2 == 0) {
-            let originWidth = Math.floor(this.device.canvas.width / this.device.upscaleRatio);
-            let originHeight = Math.floor(this.device.canvas.height / this.device.upscaleRatio);
-
             commandEncoder.copyBufferToBuffer(this.currentReservoir, 0, this.previousReservoir, 0, 16 * 4 * originWidth * originHeight);
         }
     }

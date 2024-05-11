@@ -11,7 +11,7 @@ class webGPUDevice {
         if (!navigator.gpu)
             throw new Error('Not Support WebGPU')
         let _ad = await navigator.gpu.requestAdapter({
-            powerPreference: 'high-performance',
+            // powerPreference: 'high-performance',
         })
         if (!_ad) throw new Error('No Adapter Found')
         this.adapter = _ad as GPUAdapter;
