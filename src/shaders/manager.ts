@@ -20,6 +20,7 @@ import accumulate from './tracing/accumulate.wgsl?raw';
 
 import denoiseCommon from './denoise/denoiseCommon.wgsl?raw';
 import temperalAccum from './denoise/temperalAccum.wgsl?raw';
+import firefly from './denoise/firefly.wgsl?raw';
 import denoiseAccum from './denoise/denoiseAccum.wgsl?raw';
 
 import display from './display.wgsl?raw';
@@ -49,6 +50,7 @@ class ShaderManager {
 
         "denoiseCommon.wgsl": denoiseCommon,
         "temperalAccum.wgsl": temperalAccum,
+        "firefly.wgsl": firefly,
         "denoiseAccum.wgsl": denoiseAccum,
 
         "display.wgsl": display,

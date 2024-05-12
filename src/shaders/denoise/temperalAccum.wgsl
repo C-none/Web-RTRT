@@ -13,40 +13,16 @@ struct Camera {
 @group(0) @binding(5) var<storage,read_write> gBufferAttri:array<vec4f>;
 @group(0) @binding(6) var<storage,read_write> gBufferAttriPrevious : array<vec4f>;
 @group(0) @binding(7) var depth : texture_depth_2d;
-@group(0) @binding(8) var depth_previous : texture_depth_2d;
-@group(0) @binding(9) var<storage,read_write> variance:array<f32>;
-
-@group(1) @binding(0) var<storage,read_write> historyLength: array<f32>;
-@group(1) @binding(1) var<storage,read_write> historyLengthPrevious: array<f32>;
-
-@group(2) @binding(0) var<storage,read_write> moment:array<vec2f>;
-@group(2) @binding(1) var<storage,read_write> momentPrevious:array<vec2f>;
+@group(0) @binding(8) var<storage,read_write> historyLength: array<f32>;
+@group(0) @binding(9) var<storage,read_write> historyLengthPrevious: array<f32>;
+@group(0) @binding(10) var<storage,read_write> moment:array<vec2f>;
+@group(0) @binding(11) var<storage,read_write> momentPrevious:array<vec2f>;
+@group(0) @binding(12) var<storage, read_write> variance_current: array<f32>;
 
 override WIDTH: u32;
 override HEIGHT: u32;
 
 // #include <denoiseCommon.wgsl>;
-
-fn loadHistoryLength(historyLength: ptr<storage,array<f32>, read_write>, launchIndex: u32) -> f32 {
-    return (*historyLength)[launchIndex];
-}
-
-fn storeHistoryLength(historyLength: ptr<storage,array<f32>, read_write>, launchIndex: u32, value: f32) {
-    (*historyLength)[launchIndex] = value;
-}
-
-fn loadMoment(moment: ptr<storage,array<vec2f>, read_write>, launchIndex: u32) -> vec2f {
-    return (*moment)[launchIndex];
-}
-
-fn storeMoment(moment: ptr<storage,array<vec2f>, read_write>, launchIndex: u32, value: vec2f) {
-    (*moment)[launchIndex] = value;
-}
-
-fn loadNormal(gBuffer: ptr<storage,array<vec4f>, read_write>, launchIndex: u32) -> vec3f {
-    let point = loadGBufferAttri(gBuffer, launchIndex);
-    return point.normalShading;
-}
 
 fn loadPosition(gBuffer: ptr<storage,array<vec4f>, read_write>, launchIndex: u32) -> vec3f {
     let point = loadGBufferAttri(gBuffer, launchIndex);
@@ -69,18 +45,18 @@ fn loadNormalShared(sharedPos: vec2i) -> vec3f {
 
 fn preload(sharedPos: vec2i, globalPos: vec2i) {
     let globalId = clamp(globalPos, vec2i(0), vec2i(screen_size) - 1);
-    let normal = loadNormal(&gBufferAttri, getCoord(vec2f(globalId)));
+    let normal = loadNormal(&gBufferAttri, getCoord(vec2f(globalId) + 0.5));
     sharedNormal[sharedPos.y][sharedPos.x] = normal;
 }   
 
 fn invokePreload(GlobalInvocationID: vec2i, LocalInvocationID: vec2i) {
     let group_base = GlobalInvocationID - LocalInvocationID - BORDER;
-    let stage_num = (SHARED_SIZE + BATCH_SIZE * BATCH_SIZE - 1) / (BATCH_SIZE * BATCH_SIZE);
+    let stage_num = (SHARED_SIZE * SHARED_SIZE + BATCH_SIZE * BATCH_SIZE - 1) / (BATCH_SIZE * BATCH_SIZE);
     for (var i: i32 = 0; i < stage_num; i = i + 1) {
         let threadIdx: i32 = LocalInvocationID.y * BATCH_SIZE + LocalInvocationID.x;
-        let virtualIdx = threadIdx + i * BATCH_SIZE * BATCH_SIZE;
-        let loadIdx = vec2i(virtualIdx % BATCH_SIZE, virtualIdx / BATCH_SIZE);
-        if virtualIdx < SHARED_SIZE * SHARED_SIZE {
+        let virtualIdx: i32 = threadIdx + i * BATCH_SIZE * BATCH_SIZE;
+        let loadIdx = vec2i(virtualIdx % SHARED_SIZE, virtualIdx / SHARED_SIZE);
+        if i == 0 || virtualIdx < SHARED_SIZE * SHARED_SIZE {
             preload(loadIdx, group_base + loadIdx);
         }
     }
@@ -123,7 +99,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
         if !validateCoord(screen_pos_offset) {
             continue;
         }
-        let groupSharedPos = vec2i(LocalInvocationID.xy) + vec2i(offset);
+        let groupSharedPos = vec2i(LocalInvocationID.xy) + vec2i(offset) + BORDER;
         normalCenterAvg += loadNormalShared(groupSharedPos);
         // normalCenterAvg += loadNormal(&gBufferAttri, u32(launchIndexOffset));
     }
@@ -162,8 +138,8 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
             let posPre = loadPosition(&gBufferAttriPrevious, u32(launchIndexOffset));
             if validateReprojection(normalCenterAvg, posCenter, posPre) {
                 sumIllum += loadIllumination(&illumination_previous, u32(launchIndexOffset)) * weight[i];
-                sumMoment += loadMoment(&momentPrevious, u32(launchIndexOffset)) * weight[i];
-                sumHistoryLength += loadHistoryLength(&historyLengthPrevious, u32(launchIndexOffset)) * weight[i];
+                sumMoment += momentPrevious[launchIndexOffset] * weight[i];
+                sumHistoryLength += historyLengthPrevious[launchIndexOffset] * weight[i];
                 sumWeight += weight[i];
             }
         }
@@ -171,7 +147,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
             sumIllum /= sumWeight;
             sumMoment /= sumWeight;
             sumHistoryLength /= sumWeight;
-            historyLengthOut = clamp(sumHistoryLength + 1., 1., 10.);
+            historyLengthOut = clamp(sumHistoryLength + 1., 1., 5.);
             let alpha = 1. / historyLengthOut;
             illumOut = mix(sumIllum, illumSamp, alpha);
             // illumOut = mix(sumIllum, illumSamp, 0.3);
@@ -184,10 +160,11 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
             historyLengthOut = 1.0;
             variance = 100.;
         }
-        storeMoment(&moment, launchIndex, momentOut);
-        storeHistoryLength(&historyLength, launchIndex, historyLengthOut);
-        // storeIllumination(&illumination_previous, launchIndex, illumOut);
+        variance_current[launchIndex] = variance;
+        moment[launchIndex] = momentOut;
+        historyLength[launchIndex] = historyLengthOut;
+
         storeIllumination(&illumination_current, launchIndex, illumOut);
-        storeIllumination(&illumination_sample, launchIndex, illumOut);
+        // storeIllumination(&illumination_sample, launchIndex, illumOut);
     }
 }
