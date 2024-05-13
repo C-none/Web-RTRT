@@ -1,5 +1,7 @@
 @group(0) @binding(0) var<storage, read_write> illumination: array<vec2u>;
-@group(0) @binding(1) var<storage, read_write> gBufferTex : array<vec2u>;
+@group(0) @binding(1) var<storage, read_write> output : array<vec2u>;
+@group(0) @binding(2) var<storage, read_write> gBufferTex : array<vec2u>;
+@group(0) @binding(3) var<storage, read_write> variance : array<f32>;
 
 override WIDTH: u32;
 override HEIGHT: u32;
@@ -23,5 +25,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
     let illum = loadIllumination(&illumination, launchIndex);
     let reflectance = loadReflectance(&gBufferTex, launchIndex);
     let color = vec3f(illum) * vec3f(reflectance);
-    storeColor(&illumination, launchIndex, color);
+    // storeColor(&illumination, launchIndex, illum / 10);
+    let variance = variance[launchIndex];
+    storeColor(&output, launchIndex, color);
 }

@@ -7,6 +7,7 @@ class Denoiser {
     device: webGPUDevice;
     camera: CameraManager;
     patchSize: number = 8;
+    iteration: number = 0;
     reflectance: GPUBuffer;
     motionVec: GPUTexture;
     depthTexture: GPUTexture;
@@ -20,9 +21,6 @@ class Denoiser {
 
     variance: GPUBuffer;
     prevVariance: GPUBuffer;
-    varianceBindGroupLayout: GPUBindGroupLayout;
-    varianceBindGroup: GPUBindGroup;
-    varianceBindGroupInverse: GPUBindGroup;
 
     illumination: GPUBuffer;
     previousIllumination: GPUBuffer;
@@ -35,13 +33,23 @@ class Denoiser {
     accumulateBindGroupLayout: GPUBindGroupLayout;
     accumulateBindGroup: GPUBindGroup;
 
-    temperalAccumlatePipeline: GPUComputePipeline;
-    temperalAccumlateBindGroupLayout: GPUBindGroupLayout;
-    temperalAccumlateBindGroup: GPUBindGroup;
+    temporalAccumulatePipeline: GPUComputePipeline;
+    temporalAccumulateBindGroupLayout: GPUBindGroupLayout;
+    temporalAccumulateBindGroup: GPUBindGroup;
 
     fireflyPipeline: GPUComputePipeline;
     fireflyBindGroupLayout: GPUBindGroupLayout;
     fireflyBindGroup: GPUBindGroup;
+
+    filterVariancePipeline: GPUComputePipeline;
+    varianceBindGroupLayout: GPUBindGroupLayout;
+    varianceBindGroup: GPUBindGroup;
+    varianceBindGroupInverse: GPUBindGroup;
+
+    atrousPipeline: Array<GPUComputePipeline> = new Array<GPUComputePipeline>(this.iteration);
+    atrousBindGroupLayout: GPUBindGroupLayout;
+    atrousBindGroup: GPUBindGroup;
+    atrousBindGroupInverse: GPUBindGroup;
 
     constructor(device: webGPUDevice, buffers: BufferPool, camera: CameraManager) {
         this.device = device;
@@ -102,6 +110,7 @@ class Denoiser {
 
     buildBindGroupLayout() {
         this.varianceBindGroupLayout = this.device.device.createBindGroupLayout({
+            label: 'varianceBindGroupLayout',
             entries: [
                 {// current variance
                     binding: 0,
@@ -112,10 +121,16 @@ class Denoiser {
                     binding: 1,
                     visibility: GPUShaderStage.COMPUTE,
                     buffer: { type: 'storage', },
+                },
+                {// depth texture
+                    binding: 2,
+                    visibility: GPUShaderStage.COMPUTE,
+                    texture: { sampleType: 'depth', },
                 }
             ]
         });
-        this.temperalAccumlateBindGroupLayout = this.device.device.createBindGroupLayout({
+        this.temporalAccumulateBindGroupLayout = this.device.device.createBindGroupLayout({
+            label: 'temporalAccumulateBindGroupLayout',
             entries: [
                 {// camera buffer
                     binding: 0,
@@ -185,6 +200,7 @@ class Denoiser {
             ]
         });
         this.fireflyBindGroupLayout = this.device.device.createBindGroupLayout({
+            label: 'fireflyBindGroupLayout',
             entries: [
                 {// illumination input
                     binding: 0,
@@ -208,14 +224,32 @@ class Denoiser {
                 },
             ]
         });
+        this.atrousBindGroupLayout = this.device.device.createBindGroupLayout({
+            label: 'atrousBindGroupLayout',
+            entries: [
+                {// illumination input
+                    binding: 0,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'storage', },
+                },
+                {// illumination output
+                    binding: 1,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'storage', },
+                },
+                {// gBufferAttri
+                    binding: 2,
+                    visibility: GPUShaderStage.COMPUTE,
+                    buffer: { type: 'storage', },
+                },
+            ]
+        });
     }
 
     async buildPipeline() {
         let originWidth = Math.floor(this.device.canvas.width / this.device.upscaleRatio);
         let originHeight = Math.floor(this.device.canvas.height / this.device.upscaleRatio);
         let denoiseAccum = this.device.device.createShaderModule({ code: shaders.get("denoiseAccum.wgsl").replace(/BATCH_SIZE/g, this.patchSize.toString()) });
-        let temperalAccum = this.device.device.createShaderModule({ code: shaders.get("temperalAccum.wgsl").replace(/BATCH_SIZE/g, this.patchSize.toString()) });
-        let firefly = this.device.device.createShaderModule({ code: shaders.get("firefly.wgsl").replace(/BATCH_SIZE/g, this.patchSize.toString()) });
         this.accumlatePipeline = await this.device.device.createComputePipelineAsync({
             label: 'denoiseAccumulate',
             layout: 'auto',
@@ -228,10 +262,11 @@ class Denoiser {
                 }
             },
         });
-        this.temperalAccumlatePipeline = await this.device.device.createComputePipelineAsync({
+        let temperalAccum = this.device.device.createShaderModule({ code: shaders.get("temperalAccum.wgsl").replace(/BATCH_SIZE/g, this.patchSize.toString()) });
+        this.temporalAccumulatePipeline = await this.device.device.createComputePipelineAsync({
             label: 'temperalAccumulate',
             layout: this.device.device.createPipelineLayout({
-                bindGroupLayouts: [this.temperalAccumlateBindGroupLayout],
+                bindGroupLayouts: [this.temporalAccumulateBindGroupLayout],
             }),
             compute: {
                 module: temperalAccum,
@@ -242,6 +277,7 @@ class Denoiser {
                 }
             },
         });
+        let firefly = this.device.device.createShaderModule({ code: shaders.get("firefly.wgsl").replace(/BATCH_SIZE/g, this.patchSize.toString()) });
         this.fireflyPipeline = await this.device.device.createComputePipelineAsync({
             label: 'firefly',
             layout: this.device.device.createPipelineLayout({
@@ -256,6 +292,38 @@ class Denoiser {
                 }
             },
         });
+        let filterVariance = this.device.device.createShaderModule({ code: shaders.get("filterVariance.wgsl").replace(/BATCH_SIZE/g, this.patchSize.toString()) });
+        this.filterVariancePipeline = await this.device.device.createComputePipelineAsync({
+            label: 'filterVariance',
+            layout: this.device.device.createPipelineLayout({
+                bindGroupLayouts: [this.varianceBindGroupLayout],
+            }),
+            compute: {
+                module: filterVariance,
+                entryPoint: 'main',
+                constants: {
+                    WIDTH: originWidth,
+                    HEIGHT: originHeight,
+                }
+            },
+        });
+        for (let i = 0; i < this.iteration; i++) {
+            let atrous = this.device.device.createShaderModule({ code: shaders.get("atrous.wgsl").replace(/BATCH_SIZE/g, this.patchSize.toString()).replace(/STEP_SIZE/g, i.toString()) });
+            this.atrousPipeline[i] = await this.device.device.createComputePipelineAsync({
+                label: 'atrous',
+                layout: this.device.device.createPipelineLayout({
+                    bindGroupLayouts: [this.atrousBindGroupLayout, this.varianceBindGroupLayout],
+                }),
+                compute: {
+                    module: atrous,
+                    entryPoint: 'main',
+                    constants: {
+                        WIDTH: originWidth,
+                        HEIGHT: originHeight,
+                    }
+                },
+            });
+        }
     }
 
     buildBindGroup() {
@@ -263,13 +331,15 @@ class Denoiser {
             label: 'accumulateBindGroup',
             layout: this.accumlatePipeline.getBindGroupLayout(0),
             entries: [
-                { binding: 0, resource: { buffer: this.illumination }, },
-                { binding: 1, resource: { buffer: this.reflectance }, }
+                { binding: 0, resource: { buffer: this.currentIllumination }, },
+                { binding: 1, resource: { buffer: this.illumination }, },
+                { binding: 2, resource: { buffer: this.reflectance }, },
+                { binding: 3, resource: { buffer: this.variance } },
             ]
         });
-        this.temperalAccumlateBindGroup = this.device.device.createBindGroup({
+        this.temporalAccumulateBindGroup = this.device.device.createBindGroup({
             label: 'temperalAccumlateBindGroup',
-            layout: this.temperalAccumlateBindGroupLayout,
+            layout: this.temporalAccumulateBindGroupLayout,
             entries: [
                 { binding: 0, resource: { buffer: this.camera.cameraBuffer }, },
                 { binding: 1, resource: this.motionVec.createView(), },
@@ -291,7 +361,8 @@ class Denoiser {
             layout: this.varianceBindGroupLayout,
             entries: [
                 { binding: 0, resource: { buffer: this.variance }, },
-                { binding: 1, resource: { buffer: this.prevVariance }, }
+                { binding: 1, resource: { buffer: this.prevVariance }, },
+                { binding: 2, resource: this.depthTexture.createView(), }
             ]
         });
         this.varianceBindGroupInverse = this.device.device.createBindGroup({
@@ -299,7 +370,8 @@ class Denoiser {
             layout: this.varianceBindGroupLayout,
             entries: [
                 { binding: 0, resource: { buffer: this.prevVariance }, },
-                { binding: 1, resource: { buffer: this.variance }, }
+                { binding: 1, resource: { buffer: this.variance }, },
+                { binding: 2, resource: this.previousDepthTexture.createView(), }
             ]
         });
         this.fireflyBindGroup = this.device.device.createBindGroup({
@@ -310,6 +382,24 @@ class Denoiser {
                 { binding: 1, resource: { buffer: this.illumination }, },
                 { binding: 2, resource: { buffer: this.gBufferAttri }, },
                 { binding: 3, resource: this.depthTexture.createView(), },
+            ]
+        });
+        this.atrousBindGroup = this.device.device.createBindGroup({
+            label: 'atrousBindGroup',
+            layout: this.atrousBindGroupLayout,
+            entries: [
+                { binding: 0, resource: { buffer: this.illumination }, },
+                { binding: 1, resource: { buffer: this.currentIllumination }, },
+                { binding: 2, resource: { buffer: this.gBufferAttri }, },
+            ]
+        });
+        this.atrousBindGroupInverse = this.device.device.createBindGroup({
+            label: 'atrousBindGroupInverse',
+            layout: this.atrousBindGroupLayout,
+            entries: [
+                { binding: 0, resource: { buffer: this.currentIllumination }, },
+                { binding: 1, resource: { buffer: this.illumination }, },
+                { binding: 2, resource: { buffer: this.gBufferAttri }, },
             ]
         });
     }
@@ -325,26 +415,54 @@ class Denoiser {
         let originHeight = Math.floor(this.device.canvas.height / this.device.upscaleRatio);
 
         const temperalAccum = encoder.beginComputePass();
-        temperalAccum.setPipeline(this.temperalAccumlatePipeline);
-        temperalAccum.setBindGroup(0, this.temperalAccumlateBindGroup);
+        temperalAccum.setPipeline(this.temporalAccumulatePipeline);
+        temperalAccum.setBindGroup(0, this.temporalAccumulateBindGroup);
         temperalAccum.dispatchWorkgroups(Math.ceil(originWidth / this.patchSize), Math.ceil(originHeight / this.patchSize), 1);
         temperalAccum.end();
 
-        const firefly = encoder.beginComputePass();
-        firefly.setPipeline(this.fireflyPipeline);
-        firefly.setBindGroup(0, this.fireflyBindGroup);
-        firefly.dispatchWorkgroups(Math.ceil(originWidth / this.patchSize), Math.ceil(originHeight / this.patchSize), 1);
-        firefly.end();
+        // const firefly = encoder.beginComputePass();
+        // firefly.setPipeline(this.fireflyPipeline);
+        // firefly.setBindGroup(0, this.fireflyBindGroup);
+        // firefly.dispatchWorkgroups(Math.ceil(originWidth / this.patchSize), Math.ceil(originHeight / this.patchSize), 1);
+        // firefly.end();
 
+        // if (this.iteration == 0) {
+        //     encoder.copyBufferToBuffer(this.illumination, 0, this.previousIllumination, 0, 2 * 4 * originWidth * originHeight);
+        // }
+        encoder.copyBufferToBuffer(this.moment, 0, this.prevMoment, 0, 2 * 4 * originWidth * originHeight);
+        encoder.copyBufferToBuffer(this.historyLength, 0, this.prevHistoryLength, 0, 1 * 4 * originWidth * originHeight);
+
+        // for (let i = 0; i < this.iteration; i++) {
+
+        //     const filterVariance = encoder.beginComputePass();
+        //     filterVariance.setPipeline(this.filterVariancePipeline);
+        //     filterVariance.setBindGroup(0, this.varianceBindGroup);
+        //     filterVariance.dispatchWorkgroups(Math.ceil(originWidth / this.patchSize), Math.ceil(originHeight / this.patchSize), 1);
+        //     filterVariance.end();
+
+        //     const atrous = encoder.beginComputePass();
+        //     atrous.setPipeline(this.atrousPipeline[i]);
+        //     if (i % 2 == 0) {
+        //         atrous.setBindGroup(0, this.atrousBindGroup);
+        //     } else {
+        //         atrous.setBindGroup(0, this.atrousBindGroupInverse);
+        //     }
+        //     atrous.setBindGroup(1, this.varianceBindGroupInverse);
+        //     atrous.dispatchWorkgroups(Math.ceil(originWidth / this.patchSize), Math.ceil(originHeight / this.patchSize), 1);
+        //     atrous.end();
+
+        //     if (i == 0) {
+        //         encoder.copyBufferToBuffer(this.currentIllumination, 0, this.previousIllumination, 0, 2 * 4 * originWidth * originHeight);
+        //     }
+        // }
+        // if (this.iteration % 2 == 1) {
+        encoder.copyBufferToBuffer(this.currentIllumination, 0, this.previousIllumination, 0, 2 * 4 * originWidth * originHeight);
+        // }
         const accumulate = encoder.beginComputePass();
         accumulate.setPipeline(this.accumlatePipeline);
         accumulate.setBindGroup(0, this.accumulateBindGroup);
         accumulate.dispatchWorkgroups(Math.ceil(originWidth / this.patchSize), Math.ceil(originHeight / this.patchSize), 1);
         accumulate.end();
-
-        encoder.copyBufferToBuffer(this.moment, 0, this.prevMoment, 0, 2 * 4 * originWidth * originHeight);
-        encoder.copyBufferToBuffer(this.historyLength, 0, this.prevHistoryLength, 0, 1 * 4 * originWidth * originHeight);
-        encoder.copyBufferToBuffer(this.currentIllumination, 0, this.previousIllumination, 0, 2 * 4 * originWidth * originHeight);
     }
 
 }

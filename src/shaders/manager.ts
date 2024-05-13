@@ -19,8 +19,11 @@ import spatialReuse from './tracing/spatialReuse.wgsl?raw';
 import accumulate from './tracing/accumulate.wgsl?raw';
 
 import denoiseCommon from './denoise/denoiseCommon.wgsl?raw';
+import preloadInvoker from './denoise/preloadInvoker.wgsl?raw';
 import temperalAccum from './denoise/temperalAccum.wgsl?raw';
 import firefly from './denoise/firefly.wgsl?raw';
+import filterVariance from './denoise/filterVariance.wgsl?raw';
+import atrous from './denoise/atrous.wgsl?raw';
 import denoiseAccum from './denoise/denoiseAccum.wgsl?raw';
 
 import display from './display.wgsl?raw';
@@ -49,8 +52,11 @@ class ShaderManager {
         "accumulate.wgsl": accumulate,
 
         "denoiseCommon.wgsl": denoiseCommon,
+        "preloadInvoker.wgsl": preloadInvoker,
         "temperalAccum.wgsl": temperalAccum,
         "firefly.wgsl": firefly,
+        "filterVariance.wgsl": filterVariance,
+        "atrous.wgsl": atrous,
         "denoiseAccum.wgsl": denoiseAccum,
 
         "display.wgsl": display,

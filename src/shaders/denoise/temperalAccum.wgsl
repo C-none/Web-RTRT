@@ -32,36 +32,24 @@ fn loadPosition(gBuffer: ptr<storage,array<vec4f>, read_write>, launchIndex: u32
 fn validateReprojection(normalCenter: vec3f, posCenter: vec3f, posPre: vec3f) -> bool {
     let posDiff = posCenter - posPre;
     let planeDist = abs(dot(normalCenter, posDiff));
-    return planeDist < 0.02;
+    return planeDist < 0.01;
 }
 const BORDER: i32 = 1;
 const SHARED_SIZE: i32 = BATCH_SIZE + BORDER * 2;
 
-var<workgroup> sharedNormal: array<array<vec3f, SHARED_SIZE>, SHARED_SIZE>;
+var<workgroup> sharedNormalDepth: array<array<vec4f, SHARED_SIZE>, SHARED_SIZE>;
 
 fn loadNormalShared(sharedPos: vec2i) -> vec3f {
-    return sharedNormal[sharedPos.y][sharedPos.x];
+    return sharedNormalDepth[sharedPos.y][sharedPos.x].xyz;
 }
 
 fn preload(sharedPos: vec2i, globalPos: vec2i) {
     let globalId = clamp(globalPos, vec2i(0), vec2i(screen_size) - 1);
     let normal = loadNormal(&gBufferAttri, getCoord(vec2f(globalId) + 0.5));
-    sharedNormal[sharedPos.y][sharedPos.x] = normal;
-}   
-
-fn invokePreload(GlobalInvocationID: vec2i, LocalInvocationID: vec2i) {
-    let group_base = GlobalInvocationID - LocalInvocationID - BORDER;
-    let stage_num = (SHARED_SIZE * SHARED_SIZE + BATCH_SIZE * BATCH_SIZE - 1) / (BATCH_SIZE * BATCH_SIZE);
-    for (var i: i32 = 0; i < stage_num; i = i + 1) {
-        let threadIdx: i32 = LocalInvocationID.y * BATCH_SIZE + LocalInvocationID.x;
-        let virtualIdx: i32 = threadIdx + i * BATCH_SIZE * BATCH_SIZE;
-        let loadIdx = vec2i(virtualIdx % SHARED_SIZE, virtualIdx / SHARED_SIZE);
-        if i == 0 || virtualIdx < SHARED_SIZE * SHARED_SIZE {
-            preload(loadIdx, group_base + loadIdx);
-        }
-    }
-    workgroupBarrier();
+    let depth = textureLoad(depth, vec2u(globalId), 0);
+    sharedNormalDepth[sharedPos.y][sharedPos.x] = vec4f(normal, depth);
 }
+// #include <preloadInvoker.wgsl>;
 
 @compute @workgroup_size(BATCH_SIZE, BATCH_SIZE, 1)
 fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workgroup_id) WorkgroupID: vec3u, @builtin(local_invocation_id) LocalInvocationID: vec3u) {
@@ -75,10 +63,13 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
     let depthCenter = textureLoad(depth, vec2u(screen_pos), 0);
     if depthCenter == 1.0 {
         storeIllumination(&illumination_sample, getCoord(screen_pos), vec3f(0));
+        variance_current[ getCoord(screen_pos)] = 100.;
+        moment[getCoord(screen_pos)] = vec2f(0);
+        historyLength[getCoord(screen_pos)] = 0.0;
         return;
     }
-    let motionVec: vec2f = unpack2x16float(textureLoad(motionVec, GlobalInvocationID.xy, 0).r) * vec2f(screen_size);
-    let screen_pos_pre = vec2f(GlobalInvocationID.xy) - motionVec;
+    let motion: vec2f = unpack2x16float(textureLoad(motionVec, GlobalInvocationID.xy, 0).r) * vec2f(screen_size);
+    let screen_pos_pre = screen_pos - motion;
     let launchIndex: u32 = getCoord(screen_pos);
     var illumSamp = loadIllumination(&illumination_sample, launchIndex);
     var illumSampLuminance = luminance(illumSamp);
@@ -100,6 +91,9 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
             continue;
         }
         let groupSharedPos = vec2i(LocalInvocationID.xy) + vec2i(offset) + BORDER;
+        if sharedNormalDepth[groupSharedPos.y][groupSharedPos.x].w >= 1 {
+            continue;
+        }
         normalCenterAvg += loadNormalShared(groupSharedPos);
         // normalCenterAvg += loadNormal(&gBufferAttri, u32(launchIndexOffset));
     }
@@ -117,8 +111,8 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
         var historyLengthOut = 0.;
         var variance = 0.;
 
-        let pos_floor = floor(screen_pos_pre);
-        let frac = screen_pos_pre - pos_floor;
+        let pos_floor = floor(screen_pos_pre - 0.5);
+        let frac = screen_pos_pre-0.5 - pos_floor;
         let weight: array<f32,4> = array<f32,4>(
             (1.0 - frac.x) * (1.0 - frac.y),
             frac.x * (1.0 - frac.y),
@@ -130,12 +124,12 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
         );
         for (var i: i32 = 0; i < 4; i = i + 1) {
             let offset = offset22[i];
-            let screen_pos_pre_offset = screen_pos_pre + offset;
+            let screen_pos_pre_offset = screen_pos_pre -0.5 + offset;
             let launchIndexOffset = getCoord(screen_pos_pre_offset);
             if !validateCoord(screen_pos_pre_offset) {
                 continue;
             }
-            let posPre = loadPosition(&gBufferAttriPrevious, u32(launchIndexOffset));
+            let posPre = gBufferAttriPrevious[launchIndexOffset].xyz;
             if validateReprojection(normalCenterAvg, posCenter, posPre) {
                 sumIllum += loadIllumination(&illumination_previous, u32(launchIndexOffset)) * weight[i];
                 sumMoment += momentPrevious[launchIndexOffset] * weight[i];
@@ -143,28 +137,39 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
                 sumWeight += weight[i];
             }
         }
+
         if sumWeight > 0. {
             sumIllum /= sumWeight;
             sumMoment /= sumWeight;
             sumHistoryLength /= sumWeight;
             historyLengthOut = clamp(sumHistoryLength + 1., 1., 5.);
             let alpha = 1. / historyLengthOut;
-            illumOut = mix(sumIllum, illumSamp, alpha);
-            // illumOut = mix(sumIllum, illumSamp, 0.3);
             momentOut = mix(sumMoment, vec2f(illumSampLuminance, illumSampLuminance * illumSampLuminance), alpha);
             variance = max(momentOut.y - momentOut.x * momentOut.x, 0.);
+            let deviation = sqrt(variance);
+            // sumIllum = clamp(sumIllum, illumSamp - deviation / 2, illumSamp + deviation / 2);
+            illumOut = mix(sumIllum, illumSamp, alpha);
+            // illumOut = illumSamp;
+            // illumOut = mix(sumIllum, illumSamp, 0.3);
+            color = vec3f(0);
         } else {
             sumIllum = vec3f(0);
             illumOut = illumSamp;
             momentOut = vec2f(illumSampLuminance, illumSampLuminance * illumSampLuminance);
             historyLengthOut = 1.0;
             variance = 100.;
+            color = vec3f(1);
         }
         variance_current[launchIndex] = variance;
         moment[launchIndex] = momentOut;
         historyLength[launchIndex] = historyLengthOut;
-
+        // if validateCoord(screen_pos_pre) {
+        //     sumIllum = loadIllumination(&illumination_previous, u32(getCoord(screen_pos_pre))) ;
+        //     sumHistoryLength = historyLengthPrevious[getCoord(screen_pos_pre)];
+        //     sumWeight = 1;
+        // }
         storeIllumination(&illumination_current, launchIndex, illumOut);
-        // storeIllumination(&illumination_sample, launchIndex, illumOut);
+        // storeIllumination(&illumination_sample, launchIndex, vec3f(sqrt(variance) / 2));
+        storeIllumination(&illumination_sample, launchIndex, illumOut);
     }
 }

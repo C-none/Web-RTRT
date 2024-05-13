@@ -66,12 +66,12 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
                 reservoirGI.W = 0.;
             }
             bsdf = BSDF(pointInfo, wo, wi);
-            geometryTerm = reservoirGI.Lo * 4 ;
+            geometryTerm = reservoirGI.Lo * 8;
                 // geometryTerm = reservoirGI.Lo / Jacobian(shadingPoint, reservoirGI);
             color += reservoirGI.W * bsdf * geometryTerm;
         }
     }
-    storeColor(&frame, launchIndex, color / pointInfo.baseColor);
+    storeColor(&frame, launchIndex, color / max(pointInfo.baseColor, vec3f(1. / 256.)));
 
 
     // storeColor(&frame, launchIndex, (pointInfo.normalShading + 1) / 2.);

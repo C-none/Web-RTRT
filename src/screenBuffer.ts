@@ -17,7 +17,7 @@ class BufferPool {
         let originHeight = Math.floor(device.canvas.height / device.upscaleRatio);
         this.currentFrameBuffer = device.device.createBuffer({
             size: 2 * 4 * originWidth * originHeight,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
         });
         this.previousFrameBuffer = device.device.createBuffer({
             size: 2 * 4 * originWidth * originHeight,
