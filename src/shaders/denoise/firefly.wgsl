@@ -100,5 +100,9 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
     if luminanceCenter < minLuminance {
         inputCoord = minLuminanceCoord;
     }
+    // if any(inputCoord != sharedIdx) {
+    //     storeIllumination(&illumination_output, getCoord(screen_pos), vec3f(0, 10, 0));
+    // } else {
     storeIllumination(&illumination_output, getCoord(screen_pos), sharedIllumination[inputCoord.y][inputCoord.x]);
+    // } 
 }

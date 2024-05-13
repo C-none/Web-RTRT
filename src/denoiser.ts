@@ -7,7 +7,8 @@ class Denoiser {
     device: webGPUDevice;
     camera: CameraManager;
     patchSize: number = 8;
-    iteration: number = 0;
+    iteration: number = 5;
+    ENABLE_DENOISE: boolean = true;
     reflectance: GPUBuffer;
     motionVec: GPUTexture;
     depthTexture: GPUTexture;
@@ -72,7 +73,7 @@ class Denoiser {
         });
         this.currentIllumination = this.device.device.createBuffer({
             size: 2 * 4 * originWidth * originHeight,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
             label: 'currentIllumination',
         });
         this.historyLength = this.device.device.createBuffer({
@@ -334,7 +335,7 @@ class Denoiser {
                 { binding: 0, resource: { buffer: this.currentIllumination }, },
                 { binding: 1, resource: { buffer: this.illumination }, },
                 { binding: 2, resource: { buffer: this.reflectance }, },
-                { binding: 3, resource: { buffer: this.variance } },
+                { binding: 3, resource: { buffer: this.prevVariance } },
             ]
         });
         this.temporalAccumulateBindGroup = this.device.device.createBindGroup({
@@ -414,50 +415,56 @@ class Denoiser {
         let originWidth = Math.floor(this.device.canvas.width / this.device.upscaleRatio);
         let originHeight = Math.floor(this.device.canvas.height / this.device.upscaleRatio);
 
-        const temperalAccum = encoder.beginComputePass();
-        temperalAccum.setPipeline(this.temporalAccumulatePipeline);
-        temperalAccum.setBindGroup(0, this.temporalAccumulateBindGroup);
-        temperalAccum.dispatchWorkgroups(Math.ceil(originWidth / this.patchSize), Math.ceil(originHeight / this.patchSize), 1);
-        temperalAccum.end();
+        if (this.ENABLE_DENOISE == true) {
+            const temperalAccum = encoder.beginComputePass();
+            temperalAccum.setPipeline(this.temporalAccumulatePipeline);
+            temperalAccum.setBindGroup(0, this.temporalAccumulateBindGroup);
+            temperalAccum.dispatchWorkgroups(Math.ceil(originWidth / this.patchSize), Math.ceil(originHeight / this.patchSize), 1);
+            temperalAccum.end();
 
-        // const firefly = encoder.beginComputePass();
-        // firefly.setPipeline(this.fireflyPipeline);
-        // firefly.setBindGroup(0, this.fireflyBindGroup);
-        // firefly.dispatchWorkgroups(Math.ceil(originWidth / this.patchSize), Math.ceil(originHeight / this.patchSize), 1);
-        // firefly.end();
+            const firefly = encoder.beginComputePass();
+            firefly.setPipeline(this.fireflyPipeline);
+            firefly.setBindGroup(0, this.fireflyBindGroup);
+            firefly.dispatchWorkgroups(Math.ceil(originWidth / this.patchSize), Math.ceil(originHeight / this.patchSize), 1);
+            firefly.end();
 
-        // if (this.iteration == 0) {
-        //     encoder.copyBufferToBuffer(this.illumination, 0, this.previousIllumination, 0, 2 * 4 * originWidth * originHeight);
-        // }
-        encoder.copyBufferToBuffer(this.moment, 0, this.prevMoment, 0, 2 * 4 * originWidth * originHeight);
-        encoder.copyBufferToBuffer(this.historyLength, 0, this.prevHistoryLength, 0, 1 * 4 * originWidth * originHeight);
+            if (this.iteration == 0) {
+                // encoder.copyBufferToBuffer(this.currentIllumination, 0, this.previousIllumination, 0, 2 * 4 * originWidth * originHeight);
+                encoder.copyBufferToBuffer(this.illumination, 0, this.previousIllumination, 0, 2 * 4 * originWidth * originHeight);
+            }
 
-        // for (let i = 0; i < this.iteration; i++) {
+            encoder.copyBufferToBuffer(this.moment, 0, this.prevMoment, 0, 2 * 4 * originWidth * originHeight);
+            encoder.copyBufferToBuffer(this.historyLength, 0, this.prevHistoryLength, 0, 1 * 4 * originWidth * originHeight);
 
-        //     const filterVariance = encoder.beginComputePass();
-        //     filterVariance.setPipeline(this.filterVariancePipeline);
-        //     filterVariance.setBindGroup(0, this.varianceBindGroup);
-        //     filterVariance.dispatchWorkgroups(Math.ceil(originWidth / this.patchSize), Math.ceil(originHeight / this.patchSize), 1);
-        //     filterVariance.end();
+            for (let i = 0; i < this.iteration; i++) {
 
-        //     const atrous = encoder.beginComputePass();
-        //     atrous.setPipeline(this.atrousPipeline[i]);
-        //     if (i % 2 == 0) {
-        //         atrous.setBindGroup(0, this.atrousBindGroup);
-        //     } else {
-        //         atrous.setBindGroup(0, this.atrousBindGroupInverse);
-        //     }
-        //     atrous.setBindGroup(1, this.varianceBindGroupInverse);
-        //     atrous.dispatchWorkgroups(Math.ceil(originWidth / this.patchSize), Math.ceil(originHeight / this.patchSize), 1);
-        //     atrous.end();
+                const filterVariance = encoder.beginComputePass();
+                filterVariance.setPipeline(this.filterVariancePipeline);
+                filterVariance.setBindGroup(0, this.varianceBindGroup);
+                filterVariance.dispatchWorkgroups(Math.ceil(originWidth / this.patchSize), Math.ceil(originHeight / this.patchSize), 1);
+                filterVariance.end();
+                // encoder.copyBufferToBuffer(this.variance, 0, this.prevVariance, 0, 1 * 4 * originWidth * originHeight);
 
-        //     if (i == 0) {
-        //         encoder.copyBufferToBuffer(this.currentIllumination, 0, this.previousIllumination, 0, 2 * 4 * originWidth * originHeight);
-        //     }
-        // }
-        // if (this.iteration % 2 == 1) {
-        encoder.copyBufferToBuffer(this.currentIllumination, 0, this.previousIllumination, 0, 2 * 4 * originWidth * originHeight);
-        // }
+                const atrous = encoder.beginComputePass();
+                atrous.setPipeline(this.atrousPipeline[i]);
+                if (i % 2 == 0) {
+                    atrous.setBindGroup(0, this.atrousBindGroup);
+                } else {
+                    atrous.setBindGroup(0, this.atrousBindGroupInverse);
+                }
+                atrous.setBindGroup(1, this.varianceBindGroupInverse);
+                atrous.dispatchWorkgroups(Math.ceil(originWidth / this.patchSize), Math.ceil(originHeight / this.patchSize), 1);
+                atrous.end();
+
+                if (i == 0) {
+                    encoder.copyBufferToBuffer(this.currentIllumination, 0, this.previousIllumination, 0, 2 * 4 * originWidth * originHeight);
+                }
+            }
+        }
+        if (this.ENABLE_DENOISE == false || this.iteration % 2 == 0) {
+            encoder.copyBufferToBuffer(this.illumination, 0, this.currentIllumination, 0, 2 * 4 * originWidth * originHeight);
+        }
+
         const accumulate = encoder.beginComputePass();
         accumulate.setPipeline(this.accumlatePipeline);
         accumulate.setBindGroup(0, this.accumulateBindGroup);

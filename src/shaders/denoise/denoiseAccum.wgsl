@@ -22,10 +22,14 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
     let x = GlobalInvocationID.x;
     let y = GlobalInvocationID.y;
     let launchIndex = y * WIDTH + x;
+    loadIllumination(&illumination, launchIndex);
     let illum = loadIllumination(&illumination, launchIndex);
     let reflectance = loadReflectance(&gBufferTex, launchIndex);
     let color = vec3f(illum) * vec3f(reflectance);
-    // storeColor(&illumination, launchIndex, illum / 10);
     let variance = variance[launchIndex];
+
+    // storeColor(&output, launchIndex, vec3f(sqrt(variance) / 8));
     storeColor(&output, launchIndex, color);
+    // storeColor(&illumination, launchIndex, illum / 10);
+    // storeColor(&output, launchIndex, illum / 5);
 }

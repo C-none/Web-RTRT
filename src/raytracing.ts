@@ -11,7 +11,7 @@ class rayTracing {
     lightCount: number = 1;
     spatialReuseIteration: number = 2;
     GI_FLAG: number = 1;
-    dynamicLight: boolean = false;
+    dynamicLight: boolean = true;
 
     vBuffer: GPUTexture;
     motionVec: GPUTexture;
@@ -122,13 +122,13 @@ class rayTracing {
             let r = Math.random() * 0.7 + 0.3;
             let g = Math.random() * 0.7 + 0.3;
             let b = Math.random() * 0.7 + 0.3;
-            let intensity = Math.random() * 5 + 15;
+            let intensity = Math.random() * 1 + 2;
             lights[i] = new light(new Float32Array([x, y, z]), new Float32Array([r, g, b]), intensity, i);
         }
         lights[0] = new light(new Float32Array([0, 18, 3.5]), new Float32Array([1, 1, 1]), 2500, 0);
-        // lights[0] = new light(new Float32Array([0, 5.5, 0]), new Float32Array([1, 1, 1]), 80, 0);
+        // lights[0] = new light(new Float32Array([0, 5.5, 0]), new Float32Array([1, 1, 1]), 10, 0);
         // lights[1] = new light(new Float32Array([-4, 5, 0]), new Float32Array([1, 0.9, 0.4]), 60, 1);
-
+        // lights[0] = new light(new Float32Array([0, 0.5, 0]), new Float32Array([1, 1, 1]), 10, 1);
 
         this.lightBuffer = this.device.device.createBuffer({
             label: 'light buffer',

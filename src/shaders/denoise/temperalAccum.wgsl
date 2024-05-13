@@ -62,8 +62,8 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
     var color = vec3f(0);
     let depthCenter = textureLoad(depth, vec2u(screen_pos), 0);
     if depthCenter == 1.0 {
-        storeIllumination(&illumination_sample, getCoord(screen_pos), vec3f(0));
-        variance_current[ getCoord(screen_pos)] = 100.;
+        storeIllumination(&illumination_current, getCoord(screen_pos), vec3f(0));
+        variance_current[ getCoord(screen_pos)] = 64.;
         moment[getCoord(screen_pos)] = vec2f(0);
         historyLength[getCoord(screen_pos)] = 0.0;
         return;
@@ -137,28 +137,38 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
                 sumWeight += weight[i];
             }
         }
-
+        let posPre = gBufferAttriPrevious[getCoord(screen_pos_pre)].xyz;
         if sumWeight > 0. {
             sumIllum /= sumWeight;
             sumMoment /= sumWeight;
             sumHistoryLength /= sumWeight;
-            historyLengthOut = clamp(sumHistoryLength + 1., 1., 5.);
-            let alpha = 1. / historyLengthOut;
+            historyLengthOut = clamp(sumHistoryLength + 1., 1., 3.);
+            var alpha = 1. / historyLengthOut;
+
+            // history clamping
+            let variance_prev = max(sumMoment.y - sumMoment.x * sumMoment.x, 1e-5);
             momentOut = mix(sumMoment, vec2f(illumSampLuminance, illumSampLuminance * illumSampLuminance), alpha);
-            variance = max(momentOut.y - momentOut.x * momentOut.x, 0.);
-            let deviation = sqrt(variance);
-            // sumIllum = clamp(sumIllum, illumSamp - deviation / 2, illumSamp + deviation / 2);
+            variance = max(momentOut.y - momentOut.x * momentOut.x, 1e-5);
+            let posDiff = posCenter - posPre;
+            let varRatio = variance / variance_prev;
+            let historyFactor = exp(- 1 * pow(varRatio, 2) * log(1e-2 * length(posDiff) + 1.000));
+
+            historyLengthOut *= historyFactor;
+            historyLengthOut = clamp(historyLengthOut, 1.1, 3.);
+            alpha = 1. / historyLengthOut;
+            momentOut = mix(sumMoment, vec2f(illumSampLuminance, illumSampLuminance * illumSampLuminance), alpha);
+            variance = max(momentOut.y - momentOut.x * momentOut.x, 1e-5);
+
+            // let deviation = sqrt(variance);
             illumOut = mix(sumIllum, illumSamp, alpha);
-            // illumOut = illumSamp;
-            // illumOut = mix(sumIllum, illumSamp, 0.3);
-            color = vec3f(0);
+            color = vec3f(historyFactor);
         } else {
             sumIllum = vec3f(0);
             illumOut = illumSamp;
             momentOut = vec2f(illumSampLuminance, illumSampLuminance * illumSampLuminance);
             historyLengthOut = 1.0;
-            variance = 100.;
-            color = vec3f(1);
+            variance = 64.;
+            color = vec3f(1, 0, 0);
         }
         variance_current[launchIndex] = variance;
         moment[launchIndex] = momentOut;
@@ -169,7 +179,8 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
         //     sumWeight = 1;
         // }
         storeIllumination(&illumination_current, launchIndex, illumOut);
-        // storeIllumination(&illumination_sample, launchIndex, vec3f(sqrt(variance) / 2));
-        storeIllumination(&illumination_sample, launchIndex, illumOut);
+        // storeIllumination(&illumination_sample, launchIndex, illumOut);
+        // storeIllumination(&illumination_sample, launchIndex, vec3f(sqrt(variance) / 8));
+        // storeIllumination(&illumination_sample, launchIndex, color);
     }
 }
