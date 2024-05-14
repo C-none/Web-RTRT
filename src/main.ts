@@ -21,7 +21,18 @@ class Application {
 
     async init() {
         this.device = new webGPUDevice();
-        await this.device.init(await document.querySelector('canvas') as HTMLCanvasElement);
+        let size = Math.min(document.body.clientWidth, document.body.clientHeight);
+        let canvas = document.createElement('canvas');
+        const devicePixelRatio = window.devicePixelRatio || 1;
+        let resolution = Math.floor(size * devicePixelRatio / 96) * 96;
+        canvas.width = resolution;
+        canvas.height = resolution;
+        canvas.style.width = resolution / devicePixelRatio + 'px';
+        canvas.style.height = resolution / devicePixelRatio + 'px';
+        canvas.style.alignSelf = 'center';
+        document.body.appendChild(canvas);
+
+        await this.device.init(canvas);
         this.buffers = new BufferPool(this.device);
         this.camera = new CameraManager(this.device);
         this.model = new gltfmodel();

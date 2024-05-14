@@ -50,6 +50,10 @@ class CameraManager {
     cameraSize: number = 4 * 4 * 4 * Float32Array.BYTES_PER_ELEMENT;
     cameraBuffer: GPUBuffer;
     device: webGPUDevice;
+    Halton_2_3: Float32Array[];
+    jitter_index: number;
+    jitter: GPUBuffer;
+    ENABLE_JITTER: boolean = false;
 
     constructor(device: webGPUDevice) {
         this.device = device;
@@ -68,6 +72,30 @@ class CameraManager {
             size: this.cameraSize,
             usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
         });
+        this.Halton_2_3 = [
+            new Float32Array([-4, -7]), new Float32Array([-7, -5]), new Float32Array([-3, -5]), new Float32Array([-5, -4]),
+            new Float32Array([-1, -4]), new Float32Array([-2, -2]), new Float32Array([-6, -1]), new Float32Array([-4, 0]),
+            new Float32Array([-7, 1]), new Float32Array([-1, 2]), new Float32Array([-6, 3]), new Float32Array([-3, 3]),
+            new Float32Array([-7, 6]), new Float32Array([-3, 6]), new Float32Array([-5, 7]), new Float32Array([-1, 7]),
+            new Float32Array([5, -7]), new Float32Array([1, -6]), new Float32Array([6, -5]), new Float32Array([4, -4]),
+            new Float32Array([2, -3]), new Float32Array([7, -2]), new Float32Array([1, -1]), new Float32Array([4, -1]),
+            new Float32Array([2, 1]), new Float32Array([6, 2]), new Float32Array([0, 4]), new Float32Array([4, 4]),
+            new Float32Array([2, 5]), new Float32Array([7, 5]), new Float32Array([5, 6]), new Float32Array([3, 7])
+        ];
+        this.Halton_2_3.forEach(pair => {
+            // pair[0] /= 16*device.upscaleRatio*2;
+            // pair[1] /= 16*device.upscaleRatio*2;
+            // pair[0] /= 16 * device.upscaleRatio;
+            // pair[1] /= 16 * device.upscaleRatio;
+            pair[0] /= 16;
+            pair[1] /= 16;
+        });
+        this.jitter_index = 0;
+        this.jitter = device.device.createBuffer({
+            label: 'sampler jitter by yyf',
+            size: Float32Array.BYTES_PER_ELEMENT * 2, // 2 x float32
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        });
     }
     lastVp = new THREE.Matrix4();
     vp = new THREE.Matrix4();
@@ -77,9 +105,22 @@ class CameraManager {
     update() {
         this.lastVp.copy(this.camera.projectionMatrix).multiply(this.camera.matrixWorldInverse);
         this.controls.update();
-        this.vp.copy(this.camera.projectionMatrix).multiply(this.camera.matrixWorldInverse);
-        this.viewMatrix.copy(this.camera.matrixWorld);
-        this.projectionMatrix.copy(this.camera.projectionMatrixInverse);
+        let curCam = this.camera.clone();
+        let originWidth = Math.floor(this.device.canvas.width / this.device.upscaleRatio);
+        let originHeight = Math.floor(this.device.canvas.height / this.device.upscaleRatio);
+        if (this.ENABLE_JITTER) {
+            curCam.setViewOffset(originWidth, originHeight,
+                this.Halton_2_3[this.jitter_index][0], this.Halton_2_3[this.jitter_index][1],
+                originWidth, originHeight);
+            var tmp: Float32Array = new Float32Array(this.Halton_2_3[this.jitter_index]);
+            //tmp =new Float32Array([0,0]);
+            this.device.device.queue.writeBuffer(this.jitter, 0, tmp);
+            // this.device.device.queue.writeBuffer(this.jitter, 0, new Float32Array([0,0]));//
+            this.jitter_index = (this.jitter_index + 1) % 32;
+        }
+        this.vp.copy(curCam.projectionMatrix).multiply(curCam.matrixWorldInverse);
+        this.viewMatrix.copy(curCam.matrixWorld);
+        this.projectionMatrix.copy(curCam.projectionMatrixInverse);
         // this.lastVp = this.camera.projectionMatrix.clone().multiply(this.camera.matrixWorldInverse);
         // this.controls.update();
         // this.vp = this.camera.projectionMatrix.clone().multiply(this.camera.matrixWorldInverse);
@@ -93,6 +134,7 @@ class CameraManager {
         this.uboArray.set(this.vp.elements, 32);
         this.uboArray.set(this.lastVp.elements, 48);
         this.device.device.queue.writeBuffer(this.cameraBuffer, 0, this.uboArray);
+
     }
     checkFrustum(sphere: THREE.Sphere): boolean {
         if (sphere)

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "host": "vite --host"
   },
   "devDependencies": {
     "typescript": "^5.4.3",
@@ -16,6 +17,7 @@
     "@types/dom-webcodecs": "^0.1.11",
     "@types/node": "^20.11.30",
     "@types/three": "^0.162.0",
+    "@vitejs/plugin-basic-ssl": "^1.1.0",
     "@webgpu/types": "^0.1.40",
     "gl-matrix": "^3.4.3",
     "three": "^0.162.0",

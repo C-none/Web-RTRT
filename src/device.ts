@@ -8,8 +8,10 @@ class webGPUDevice {
 
     async init(canvas: HTMLCanvasElement) {
         this.canvas = canvas;
-        if (!navigator.gpu)
+        if (!navigator.gpu) {
+            alert('WebGPU may not supported in your browser');
             throw new Error('Not Support WebGPU')
+        }
         let _ad = await navigator.gpu.requestAdapter({
             powerPreference: 'high-performance',
         })
@@ -34,9 +36,9 @@ class webGPUDevice {
         this.context = _context;
 
         this.format = supFeature ? navigator.gpu.getPreferredCanvasFormat() : 'rgba8unorm';
-        const devicePixelRatio = window.devicePixelRatio || 1;
-        canvas.width = canvas.clientWidth * devicePixelRatio;
-        canvas.height = canvas.clientHeight * devicePixelRatio;
+
+        if (window.devicePixelRatio >= 3) this.upscaleRatio = 3;
+
         this.context.configure({
             device: this.device, format: this.format, alphaMode: 'opaque',
             usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.COPY_SRC,
