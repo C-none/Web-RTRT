@@ -133,7 +133,7 @@ class VBuffer {
             },
             primitive: {
                 topology: 'triangle-list',
-                cullMode: 'none',
+                cullMode: 'back',
                 unclippedDepth: false,
             },
             depthStencil: {

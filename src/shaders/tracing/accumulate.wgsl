@@ -79,7 +79,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     }
     storeColor(&frame, launchIndex, color / max(pointInfo.baseColor, vec3f(1. / 256.)));
 
-    // storeColor(&frame, launchIndex, color);
+    // storeColor(&frame, launchIndex, pointInfo.baseColor);
 
     // storeColor(&frame, launchIndex, (pointInfo.normalShading + 1) / 2.);
 }

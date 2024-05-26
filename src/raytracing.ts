@@ -14,6 +14,8 @@ class rayTracing {
     spatialReuseIteration: number = 2;
     DI_FLAG: number = 1;
     GI_FLAG: number = 0;
+    RIS_FLAG: number = 1;
+    TEMPORAL_FLAG: number = 1;
     dynamicLight: boolean = true;
 
     vBuffer: GPUTexture;
@@ -89,123 +91,6 @@ class rayTracing {
             usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
         });
     }
-    // lightPosition = Array<Float32Array>(this.lightCount);
-    // lightVelocity = Array<Array<number>>(this.lightCount);
-    // private prepareLights() {
-    //     let cnt = this.lightCount;
-    //     class light {
-    //         position: Float32Array;
-    //         color: Float32Array;
-    //         intensity: number;
-    //         prob: number;
-    //         alias: number;
-    //         constructor(position: Float32Array, color: Float32Array, intensity: number, index: number) {
-    //             this.position = position;
-    //             this.color = color;
-    //             this.intensity = intensity;
-    //             this.prob = 1;
-    //             this.alias = index;
-    //         }
-    //     };
-    //     let lights = Array<light>(cnt);
-    //     const dimension = Math.sqrt(cnt);
-
-    //     // generate light in grid
-    //     // for (let i = 0; i < cnt; i++) {
-    //     //     // let x = (i % dimension) / dimension * 12 - 6;
-    //     //     // let y = 5;
-    //     //     // let z = Math.floor(i / dimension) / dimension * 12 - 6;
-    //     //     // // generate color correlated to the position randomly
-    //     //     // let r = Math.abs(x) / 6;
-    //     //     // let g = 0.5;
-    //     //     // let b = Math.abs(z) / 6;
-    //     //     let x = Math.random() * 10 - 5;
-    //     //     let y = Math.random() * 8;
-    //     //     let z = Math.random() * 2 - 1;
-    //     //     let r = Math.random() * 0.7 + 0.3;
-    //     //     let g = Math.random() * 0.7 + 0.3;
-    //     //     let b = Math.random() * 0.7 + 0.3;
-    //     //     let intensity = Math.random() * 1 + 2;
-    //     //     lights[i] = new light(new Float32Array([x, y, z]), new Float32Array([r, g, b]), intensity, i);
-    //     // }
-    //     lights[1] = new light(new Float32Array([8, 6, 3]), new Float32Array([1, 1, 0.7]), 40, 1);
-    //     lights[2] = new light(new Float32Array([8, 6, -3]), new Float32Array([0.2, 0.5, 1]), 30, 2);
-    //     lights[3] = new light(new Float32Array([-10, 6, -4]), new Float32Array([0.8, 0.8, 1]), 40, 3);
-    //     lights[4] = new light(new Float32Array([-10, 6, 4]), new Float32Array([0.5, 1, 0.2]), 35, 4);
-    //     lights[5] = new light(new Float32Array([-9.5, 1.5, -3.5]), new Float32Array([1, 0.5, 0.2]), 20, 5);
-    //     lights[6] = new light(new Float32Array([-9.5, 1.5, 3]), new Float32Array([1, 0.5, 0.2]), 15, 6);
-    //     lights[7] = new light(new Float32Array([9, 1.5, -3.5]), new Float32Array([1, 0.5, 0.2]), 15, 7);
-    //     lights[8] = new light(new Float32Array([9, 1.5, 3]), new Float32Array([1, 0.5, 0.2]), 20, 8);
-    //     // lights[0] = new light(new Float32Array([0, 18, 3.5]), new Float32Array([1, 1, 1]), 2500, 0);
-    //     lights[0] = new light(new Float32Array([4, 8, 0]), new Float32Array([1, 1, 0.9]), 50, 0);
-    //     lights[9] = new light(new Float32Array([-4, 8, 0]), new Float32Array([1, 0.5, 1]), 50, 9);
-    //     lights[10] = new light(new Float32Array([0, 8, 0]), new Float32Array([0.5, 1, 0]), 50, 10);
-
-    //     this.lightBuffer = this.device.device.createBuffer({
-    //         label: 'light buffer',
-    //         size: 4 * (4 + cnt * (8)), // 1 for light count, 8 for each light
-    //         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    //         mappedAtCreation: true,
-    //     });
-    //     // Vose's Alias Method
-    //     function initAliasTable(lights: Array<light>) {
-    //         let sumIntensity = 0;
-    //         lights.forEach(light => { sumIntensity += light.intensity; });
-    //         let averageIntensity = sumIntensity / lights.length;
-    //         let smallLights = Array<light>();
-    //         let largeLights = Array<light>();
-    //         lights.forEach(light => {
-    //             light.prob = light.intensity / averageIntensity;
-    //             if (light.prob < 1) smallLights.push(light);
-    //             else largeLights.push(light);
-    //         });
-    //         while (smallLights.length > 0 && largeLights.length > 0) {
-    //             let small = smallLights.pop();
-    //             let large = largeLights.pop();
-    //             small.alias = large.alias;
-    //             large.prob += small.prob - 1;
-    //             if (large.prob < 1) smallLights.push(large);
-    //             else largeLights.push(large);
-    //         }
-    //         while (largeLights.length > 0) {
-    //             let large = largeLights.pop();
-    //             large.prob = 1;
-    //         }
-    //         while (smallLights.length > 0) {
-    //             let small = smallLights.pop();
-    //             small.prob = 1;
-    //         }
-    //         return sumIntensity;
-    //     };
-    //     let sumIntensity = initAliasTable(lights);
-    //     let ArrayBuffer = this.lightBuffer.getMappedRange();
-    //     let UintArray = new Uint32Array(ArrayBuffer);
-    //     let FloatArray = new Float32Array(ArrayBuffer);
-    //     UintArray[0] = lights.length;
-    //     FloatArray[1] = sumIntensity;
-    //     for (let i = 0; i < lights.length; i++) {
-    //         let bias = 4 + 8 * i;
-    //         FloatArray.set(lights[i].position, bias);
-    //         this.lightPosition[i] = lights[i].position;
-    //         let color = Math.round(lights[i].color[0] * 255) << 0 | Math.round(lights[i].color[1] * 255) << 8 | Math.round(lights[i].color[2] * 255) << 16;
-    //         UintArray[bias + 3] = color;
-    //         FloatArray[bias + 4] = lights[i].prob;
-    //         UintArray[bias + 5] = lights[i].alias;
-    //         FloatArray[bias + 6] = lights[i].intensity;
-    //     }
-    //     this.lightBuffer.unmap();
-    //     for (let i = 0; i < lights.length; i++) {
-    //         // generate 3d vector on sphere uniformly
-    //         let theta = 2 * Math.PI * Math.random();
-    //         let phi = Math.acos(2 * Math.random() - 1);
-    //         let unit = [Math.sin(phi) * Math.cos(theta), Math.sin(phi) * Math.sin(theta), Math.cos(phi)];
-    //         let speed = (Math.random() + 1);
-    //         for (let i = 0; i < 3; i++)
-    //             unit[i] *= speed;
-    //         this.lightVelocity[i] = unit;
-    //     }
-    //     this.lightVelocity[0] = [2, 0., 0];
-    // }
     private buildBindGroupLayout() {
         this.bindGroupLayoutInit = this.device.device.createBindGroupLayout({
             label: 'rayTracingInit',
@@ -399,6 +284,8 @@ class rayTracing {
                     halfConeAngle: this.camera.camera.fov * Math.PI / 180 / (this.device.canvas.height / this.device.upscaleRatio * 2),
                     ENABLE_DI: this.DI_FLAG,
                     ENABLE_GI: this.GI_FLAG,
+                    ENABLE_RIS: this.RIS_FLAG,
+                    ENABLE_TEMPORAL: this.TEMPORAL_FLAG,
                     WIDTH: originWidth,
                     HEIGHT: originHeight,
                 }
@@ -615,7 +502,6 @@ class rayTracing {
     }
     async init(lights: LightManager) {
         this.lights = lights;
-        // this.prepareLights();
         this.buildBindGroupLayout();
         await this.buildPipeline();
         this.buildBindGroup();
@@ -632,23 +518,6 @@ class rayTracing {
         let interval = window.performance.now() - this.timeStamp;
         this.timeStamp = window.performance.now();
         if (this.dynamicLight) {
-            // const minBound = [-5, 1, -0.5];
-            // const maxBound = [5, 8, 0.5];
-            // const center = [0, 5, 0];
-            // for (let i = 0; i < this.lightCount; i++) {
-            //     for (let j = 0; j < 3; j++) {
-            //         if (this.lightPosition[i][j] < minBound[j]) {
-            //             this.lightVelocity[i][j] = Math.abs(this.lightVelocity[i][j]);
-            //         }
-            //         if (this.lightPosition[i][j] > maxBound[j]) {
-            //             this.lightVelocity[i][j] = -Math.abs(this.lightVelocity[i][j]);
-            //         }
-            //         // this.lightPosition[i][j] += this.lightVelocity[i][j] * 0.015 - (this.lightPosition[i][j] - center[j]) * 0.0015;
-            //         this.lightPosition[i][j] += this.lightVelocity[i][j] * 0.015;
-            //     }
-            //     // write light position
-            //     this.device.device.queue.writeBuffer(this.lightBuffer, 4 * (4 + 8 * i), this.lightPosition[i]);
-            // }
             let time = window.performance.now() / 1000;
             for (let i = 0; i < this.lights.lightCount; i++) {
                 if (this.lights.lights[i].transform == null) continue;

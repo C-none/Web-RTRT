@@ -61,8 +61,8 @@ class CameraManager {
         this.controls = new OrbitControls(this.camera, this.device.canvas);
         // this.controls.enableDamping = true;
         // this.controls.dampingFactor = 0.02
-        this.controls.target.set(0, 4, 0);
-        this.camera.position.set(-4.5, 4, 0);
+        this.controls.target.set(0, 3, 0);
+        this.camera.position.set(-4.5, 3, 0);
         // this.controls.target.set(0, 0, 0);
         // this.camera.position.set(0, 0, 2);
         this.controls.update();

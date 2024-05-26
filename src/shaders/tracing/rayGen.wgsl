@@ -35,6 +35,8 @@ struct GeometryInfo {
 override halfConeAngle = 0.0;
 override ENABLE_DI: bool = true;
 override ENABLE_GI: bool = true;
+override ENABLE_RIS: bool = true;
+override ENABLE_TEMPORAL: bool = true;
 override WIDTH: u32;
 override HEIGHT: u32;
 
@@ -62,7 +64,10 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
     if any(GlobalInvocationID.xy >= screen_size) {
         return;
     }
+    _ = ENABLE_DI;
     _ = ENABLE_GI;
+    _ = ENABLE_RIS;
+    _ = ENABLE_TEMPORAL;
     // var rayInfo: RayInfo = traceRay(origin, direction);
     var color = vec3f(0.0);
     var primaryTri = primaryHit(GlobalInvocationID.xy);
@@ -148,103 +153,107 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
                 let pointSampleInfo: PointInfo = unpackTriangleIndirect(triangle, wi);
                 let samplePoint = pointSampleInfo.pos;
 
-                var tmpReservoir = ReservoirDI();
-                var selected_pHat: f32 = 0.0;
-                for (var i = 0; i < 4; i = i + 1) {
-                    light = sampleLight();
-                    let samplePdf = sampleLightProb(light);
+                if ENABLE_RIS {
+                    var tmpReservoir = ReservoirDI();
+                    var selected_pHat: f32 = 0.0;
+                    for (var i = 0; i < 16; i = i + 1) {
+                        light = sampleLight();
+                        let samplePdf = sampleLightProb(light);
+                        wo = light.position - samplePoint;
+                        dist = length(wo);
+                        wo = normalize(wo);
+                        if dot(wo, pointSampleInfo.normalShading) <= 0.0 || dot(wo, pointSampleInfo.normalGeo) <= 0.0 {
+                            tmpReservoir.M += 1;
+                        continue;
+                        }
+                        geometryTerm_luminance = light.intensity / (dist * dist);
+                        bsdfLuminance = BSDFLuminance(pointSampleInfo, wo, -wi);
+                        pHat = bsdfLuminance * geometryTerm_luminance;
+                        updateDIResforGI(&tmpReservoir, light.id, pHat / samplePdf, pHat, &selected_pHat);
+                    }
+                    light = getLight(tmpReservoir.lightId);
                     wo = light.position - samplePoint;
                     dist = length(wo);
                     wo = normalize(wo);
-                    if dot(wo, pointSampleInfo.normalShading) <= 0.0 || dot(wo, pointSampleInfo.normalGeo) <= 0.0 {
-                        tmpReservoir.M += 1;
-                        continue;
+                    // check the visibility from sample point to light
+                    if !traceShadowRay(samplePoint, wo, dist) {
+                        tmpReservoir.W = tmpReservoir.w_sum / max(0.001, selected_pHat) / f32(tmpReservoir.M);
+                        let geometryTerm = light.color * light.intensity / (dist * dist);
+                        let bsdf = BSDF(pointSampleInfo, wo, -wi);
+                        let Lo = tmpReservoir.W * bsdf * geometryTerm;
+                        updateReservoirGI(&reservoirCurGI, pointInfo.pos, pointInfo.normalShading, pointSampleInfo.pos, pointSampleInfo.normalShading, luminance(Lo) / tracePdf, Lo, light.id);
                     }
-                    geometryTerm_luminance = light.intensity / (dist * dist);
-                    bsdfLuminance = BSDFLuminance(pointSampleInfo, wo, -wi);
-                    pHat = bsdfLuminance * geometryTerm_luminance;
-                    updateDIResforGI(&tmpReservoir, light.id, pHat / samplePdf, pHat, &selected_pHat);
+                } else {
+                    light = sampleLight();
+                    let lightPdf = sampleLightProb(light);
+                    wo = light.position - samplePoint;
+                    dist = length(wo);
+                    wo = normalize(wo);
+                    // check the visibility from sample point to light
+                    if dot(wo, pointSampleInfo.normalShading) > 0.0 && dot(wo, pointSampleInfo.normalGeo) > 0.0 {
+                        if !traceShadowRay(samplePoint, wo, dist) {
+                            let geometryTerm = light.color * light.intensity / (dist * dist);
+                            let bsdf = BSDF(pointSampleInfo, wo, -wi);
+                            let Lo = bsdf * geometryTerm / lightPdf;
+                            updateReservoirGI(&reservoirCurGI, pointInfo.pos, pointInfo.normalShading, pointSampleInfo.pos, pointSampleInfo.normalShading, luminance(Lo) / tracePdf, Lo, light.id);
+                        }
+                    }
                 }
-                light = getLight(tmpReservoir.lightId);
-                wo = light.position - samplePoint;
-                dist = length(wo);
-                wo = normalize(wo);
-                // check the visibility from sample point to light
-                if !traceShadowRay(samplePoint, wo, dist) {
-                    tmpReservoir.W = tmpReservoir.w_sum / max(0.001, selected_pHat) / f32(tmpReservoir.M);
-                    let geometryTerm = light.color * light.intensity / (dist * dist);
-                    let bsdf = BSDF(pointSampleInfo, wo, -wi);
-                    let Lo = tmpReservoir.W * bsdf * geometryTerm;
-                    updateReservoirGI(&reservoirCurGI, pointInfo.pos, pointInfo.normalShading, pointSampleInfo.pos, pointSampleInfo.normalShading, luminance(Lo) / tracePdf, Lo, light.id);
-                }
-
-            //     light = sampleLight();
-            //     let lightPdf = sampleLightProb(light);
-            //     wo = light.position - samplePoint;
-            //     dist = length(wo);
-            //     wo = normalize(wo);
-            // // check the visibility from sample point to light
-            //     if dot(wo, pointSampleInfo.normalShading) > 0.0 && dot(wo, pointSampleInfo.normalGeo) > 0.0 {
-            //         if !traceShadowRay(samplePoint, wo, dist) {
-            //             let geometryTerm = light.color * light.intensity / (dist * dist);
-            //             let bsdf = BSDF(pointSampleInfo, wo, -wi);
-            //             let Lo = bsdf * geometryTerm / lightPdf;
-            //             updateReservoirGI(&reservoirCurGI, pointInfo.pos, pointInfo.normalShading, pointSampleInfo.pos, pointSampleInfo.normalShading, luminance(Lo) / tracePdf, Lo, light.id);
-            //         }
-            //     }
             }
         }
         reservoirCurGI.M = 1;
     }
 
     // temperal reuse
+    if ENABLE_TEMPORAL {
     // plane distance
-    let posDiff = pointPrev.pos - pointInfo.pos;
-    let planeDist = abs(dot(posDiff, pointInfo.normalShading));
-    if dot(pointInfo.normalShading, pointPrev.normalShading) > 0.5 && planeDist < 0.05 {
-        if ENABLE_DI {
-            if reservoirPrevDI.W > 0.0 {
-                const capped = 8 * 5 ;
-                reservoirPrevDI.M = min(reservoirPrevDI.M, capped);
-                light = getLight(reservoirPrevDI.lightId);
-                wo = light.position - shadingPoint;
-                dist = length(wo);
-                wo = normalize(wo);
-                if dot(wo, pointInfo.normalShading) > 0.0 && dot(wo, pointInfo.normalGeo) > 0.0 {
-                    geometryTerm_luminance = light.intensity / (dist * dist);
-                    bsdfLuminance = BSDFLuminance(pointInfo, wo, -direction);
-                    pHat = bsdfLuminance * geometryTerm_luminance;
-                    reservoirPrevDI.w_sum = pHat * reservoirPrevDI.W * f32(reservoirPrevDI.M);
+        let posDiff = pointPrev.pos - pointInfo.pos;
+        let planeDist = abs(dot(posDiff, pointInfo.normalShading));
+        if dot(pointInfo.normalShading, pointPrev.normalShading) > 0.5 && planeDist < 0.05 {
+            if ENABLE_DI {
+                if reservoirPrevDI.W > 0.0 {
+                    const capped = 8 * 5 ;
+                    reservoirPrevDI.M = min(reservoirPrevDI.M, capped);
+                    light = getLight(reservoirPrevDI.lightId);
+                    wo = light.position - shadingPoint;
+                    dist = length(wo);
+                    wo = normalize(wo);
+                    if dot(wo, pointInfo.normalShading) > 0.0 && dot(wo, pointInfo.normalGeo) > 0.0 {
+                        geometryTerm_luminance = light.intensity / (dist * dist);
+                        bsdfLuminance = BSDFLuminance(pointInfo, wo, -direction);
+                        pHat = bsdfLuminance * geometryTerm_luminance;
+                        reservoirPrevDI.w_sum = pHat * reservoirPrevDI.W * f32(reservoirPrevDI.M);
 
-                    combineReservoirsDI(&reservoirCurDI, reservoirPrevDI);
-                }
-            }
-        }
-        if ENABLE_GI {
-            if reservoirPrevGI.W > 0.0 {
-                reservoirPrevGI.M = min(reservoirPrevGI.M, 12);
-                wo = reservoirPrevGI.xs - shadingPoint;
-                dist = length(wo);
-                wo = normalize(wo);
-
-                var flag = true;
-                if f32(_seed & 0x7fffffff) / f32(0x80000000) < 1. / 8. {
-                // check visibility from light to sample point
-                    light = getLight(reservoirPrevGI.lightId);
-                    let dir = light.position - reservoirPrevGI.xs;
-                    let dist = length(dir);
-                    let wo = normalize(dir);
-                    if traceShadowRay(reservoirPrevGI.xs, wo, dist) {
-                        flag = false;
+                        combineReservoirsDI(&reservoirCurDI, reservoirPrevDI);
                     }
                 }
-                if flag && dot(wo, pointInfo.normalShading) > 0.0 && dot(wo, pointInfo.normalGeo) > 0.0 && dot(-wo, reservoirPrevGI.ns) >= 0.0 {
+            }
+            if ENABLE_GI {
+                if reservoirPrevGI.W > 0.0 {
+                    reservoirPrevGI.M = min(reservoirPrevGI.M, 12);
+                    wo = reservoirPrevGI.xs - shadingPoint;
+                    dist = length(wo);
+                    wo = normalize(wo);
 
-                    pHat = luminance(reservoirPrevGI.Lo);
+                    var flag = true;
+                    if f32(_seed & 0x7fffffff) / f32(0x80000000) < 1. / 8. {
+                // check visibility from light to sample point
+                        light = getLight(reservoirPrevGI.lightId);
+                        let dir = light.position - reservoirPrevGI.xs;
+                        let dist = length(dir);
+                        let wo = normalize(dir);
+                        if traceShadowRay(reservoirPrevGI.xs, wo, dist) {
+                            flag = false;
+                        }
+                    }
+                    if flag && dot(wo, pointInfo.normalShading) > 0.0 && dot(wo, pointInfo.normalGeo) > 0.0 && dot(-wo, reservoirPrevGI.ns) >= 0.0 {
+
+                        pHat = luminance(reservoirPrevGI.Lo);
                     // pHat = luminance(reservoirPrevGI.Lo) / Jacobian(pointInfo.pos, reservoirPrevGI);
-                    reservoirPrevGI.w_sum = pHat * reservoirPrevGI.W * f32(reservoirPrevGI.M);
+                        reservoirPrevGI.w_sum = pHat * reservoirPrevGI.W * f32(reservoirPrevGI.M);
 
-                    combineReservoirsGI(&reservoirCurGI, reservoirPrevGI);
+                        combineReservoirsGI(&reservoirCurGI, reservoirPrevGI);
+                    }
                 }
             }
         }
@@ -286,16 +295,16 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
     //     wo = normalize(wo);
     //     var visibility = 1.0;
     //     var geometryTerm = vec3f(1.0);
-    //     bsdf = BSDF(pointInfo, wo, -direction);
+    //     // bsdf = BSDF(pointInfo, wo, -direction);
+    //     bsdf = pointInfo.baseColor * dot(pointInfo.normalShading, wo);
     //     geometryTerm = light.color * light.intensity / (dist * dist);
-    //     // traceShadowRay(shadingPoint, wo, dist);
-    //     // traceShadowRay(shadingPoint, wo, dist);
     //     if traceShadowRay(shadingPoint, wo, dist) {
     //         visibility = 0.0;
     //     } else {
     //         visibility = 1.0;
     //     }
     //     color = bsdf * geometryTerm * visibility / samplePdf;
+    //     // color = bsdf;
     // }
 
     // // reference color
@@ -321,4 +330,6 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
     // // write reservoir
     storeReservoir(&currentReservoir, launchIndex, reservoirCurDI, reservoirCurGI, seed);
     // storeColor(&frame, launchIndex, color / pointInfo.baseColor);
+    // storeColor(&frame, launchIndex, (pointInfo.normalShading + 1) / 2);
+    // storeColor
 }

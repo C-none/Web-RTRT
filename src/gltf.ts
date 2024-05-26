@@ -67,9 +67,6 @@ class textureManager {
         if (this.textureMap.has(texture.name)) {
             retIndex = this.textureMap.get(texture.name);
         } else {
-            if (!texture.source.data) {
-                console.log(texture);
-            }
             this.Resolution = Math.max(texture.source.data.height as number, this.Resolution);
             retIndex = this.textureMap.size;
             this.textureMap.set(texture.name, this.Storages.length);

@@ -34,32 +34,32 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
     let normalCenter = pointAttriCenter.normalShading;
     let varianceCenter = variance_input[launchIndex];
 
-    // const offset55: array<vec2i,25> = array<vec2i,25>(
-    //     vec2i(-2, -2), vec2i(-1, -2), vec2i(0, -2), vec2i(1, -2), vec2i(2, -2),
-    //     vec2i(-2, -1), vec2i(-1, -1), vec2i(0, -1), vec2i(1, -1), vec2i(2, -1),
-    //     vec2i(-2, 0), vec2i(-1, 0), vec2i(0, 0), vec2i(1, 0), vec2i(2, 0),
-    //     vec2i(-2, 1), vec2i(-1, 1), vec2i(0, 1), vec2i(1, 1), vec2i(2, 1),
-    //     vec2i(-2, 2), vec2i(-1, 2), vec2i(0, 2), vec2i(1, 2), vec2i(2, 2)
-    // );
-    // // high precision 5x5 gaussian filter weight
-    // const weight55: array<f32,25> = array<f32,25>(
-    //     1 / 256.0, 4 / 256.0, 6 / 256.0, 4 / 256.0, 1 / 256.0,
-    //     4 / 256.0, 16 / 256.0, 24 / 256.0, 16 / 256.0, 4 / 256.0,
-    //     6 / 256.0, 24 / 256.0, 36 / 256.0, 24 / 256.0, 6 / 256.0,
-    //     4 / 256.0, 16 / 256.0, 24 / 256.0, 16 / 256.0, 4 / 256.0,
-    //     1 / 256.0, 4 / 256.0, 6 / 256.0, 4 / 256.0, 1 / 256.0
-    // );
-    const offset33: array<vec2i,9> = array<vec2i,9>(
-        vec2i(-1, -1), vec2i(0, -1), vec2i(1, -1),
-        vec2i(-1, 0), vec2i(0, 0), vec2i(1, 0),
-        vec2i(-1, 1), vec2i(0, 1), vec2i(1, 1)
+    const offset55: array<vec2i,25> = array<vec2i,25>(
+        vec2i(-2, -2), vec2i(-1, -2), vec2i(0, -2), vec2i(1, -2), vec2i(2, -2),
+        vec2i(-2, -1), vec2i(-1, -1), vec2i(0, -1), vec2i(1, -1), vec2i(2, -1),
+        vec2i(-2, 0), vec2i(-1, 0), vec2i(0, 0), vec2i(1, 0), vec2i(2, 0),
+        vec2i(-2, 1), vec2i(-1, 1), vec2i(0, 1), vec2i(1, 1), vec2i(2, 1),
+        vec2i(-2, 2), vec2i(-1, 2), vec2i(0, 2), vec2i(1, 2), vec2i(2, 2)
     );
-    // high precision 3x3 gaussian filter weight
-    const weight33: array<f32,9> = array<f32,9>(
-        1 / 16.0, 2 / 16.0, 1 / 16.0,
-        2 / 16.0, 4 / 16.0, 2 / 16.0,
-        1 / 16.0, 2 / 16.0, 1 / 16.0
+    // high precision 5x5 gaussian filter weight
+    const weight55: array<f32,25> = array<f32,25>(
+        1 / 256.0, 4 / 256.0, 6 / 256.0, 4 / 256.0, 1 / 256.0,
+        4 / 256.0, 16 / 256.0, 24 / 256.0, 16 / 256.0, 4 / 256.0,
+        6 / 256.0, 24 / 256.0, 36 / 256.0, 24 / 256.0, 6 / 256.0,
+        4 / 256.0, 16 / 256.0, 24 / 256.0, 16 / 256.0, 4 / 256.0,
+        1 / 256.0, 4 / 256.0, 6 / 256.0, 4 / 256.0, 1 / 256.0
     );
+    // const offset33: array<vec2i,9> = array<vec2i,9>(
+    //     vec2i(-1, -1), vec2i(0, -1), vec2i(1, -1),
+    //     vec2i(-1, 0), vec2i(0, 0), vec2i(1, 0),
+    //     vec2i(-1, 1), vec2i(0, 1), vec2i(1, 1)
+    // );
+    // // high precision 3x3 gaussian filter weight
+    // const weight33: array<f32,9> = array<f32,9>(
+    //     1 / 16.0, 2 / 16.0, 1 / 16.0,
+    //     2 / 16.0, 4 / 16.0, 2 / 16.0,
+    //     1 / 16.0, 2 / 16.0, 1 / 16.0
+    // );
 
     const sigma_luminance: f32 = 0.5;
     const sigma_normal: f32 = 128;
@@ -71,8 +71,8 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
     var sumIlluminance = vec3f(0);
     var sumVariance = 0.0;
 
-    for (var i = 0; i < 9; i = i + 1) {
-        let offset = offset33[i];
+    for (var i = 0; i < 25; i = i + 1) {
+        let offset = offset55[i];
         let screen_pos_offset = screen_pos + step * vec2f(offset);
         let launchIndex_offset = getCoord(screen_pos_offset);
         if !validateCoord(screen_pos_offset) {
@@ -91,7 +91,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
         let planeDist = abs(dot(normalCenter, pos - posCenter));
         let wposition = exp(- planeDist / sigma_position);
 
-        let weight = wposition * wnormal * wluminance * weight33[i];
+        let weight = wposition * wnormal * wluminance * weight55[i];
         sumWeight += weight;
         sumWeight2 += weight * weight;
         sumIlluminance += illuminance * weight;
