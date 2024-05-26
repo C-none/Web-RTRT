@@ -10,6 +10,7 @@
 // #include <light.wgsl>;
 // #include <BSDF.wgsl>;
 
+override ENABLE_DI: bool = true;
 override ENABLE_GI: bool = true;
 override WIDTH: u32;
 override HEIGHT: u32;
@@ -41,20 +42,24 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
 
     var bsdf = vec3f(0.0);
     var geometryTerm = vec3f(1.0);
-    var light = getLight(reservoirDI.lightId);
+    var light: Light;
     let shadingPoint = pointInfo.pos;
     var wi = normalize(origin - shadingPoint);
-    var wo = light.position - shadingPoint;
-    var dist = length(wo);
-    wo = normalize(wo);
-    if reservoirDI.W > 0. {
-        if traceShadowRay(shadingPoint, wo, dist) {
+    var wo: vec3f = vec3f(0.0);
+    var dist: f32 = 0.0;
+    if ENABLE_DI {
+        light = getLight(reservoirDI.lightId);
+        wo = light.position - shadingPoint;
+        dist = length(wo);
+        wo = normalize(wo);
+        if reservoirDI.W < 0. || (reservoirDI.W > 0. && traceShadowRay(shadingPoint, wo, dist)) {
             reservoirDI.W = 0.;
+            reservoirDI.w_sum = 0.;
         }
+        bsdf = BSDF(pointInfo, wo, wi);
+        geometryTerm = light.color * light.intensity / (dist * dist);
+        color += max(0, reservoirDI.W) * bsdf * geometryTerm;
     }
-    bsdf = BSDF(pointInfo, wo, wi);
-    geometryTerm = light.color * light.intensity / (dist * dist);
-    color += max(0, reservoirDI.W) * bsdf * geometryTerm;
     if ENABLE_GI {
         if reservoirGI.W > 0 {
             wo = reservoirGI.xs - shadingPoint;
@@ -64,15 +69,17 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
             if traceShadowRay(shadingPoint, wo, dist) {
             // if dot(wo, pointInfo.normalShading) < 0. || dot(-wo, reservoirGI.ns) < 0. {
                 reservoirGI.W = 0.;
+                reservoirGI.w_sum = 0.;
             }
             bsdf = BSDF(pointInfo, wo, wi);
-            geometryTerm = reservoirGI.Lo * 8;
+            geometryTerm = reservoirGI.Lo * 4;
                 // geometryTerm = reservoirGI.Lo / Jacobian(shadingPoint, reservoirGI);
             color += reservoirGI.W * bsdf * geometryTerm;
         }
     }
     storeColor(&frame, launchIndex, color / max(pointInfo.baseColor, vec3f(1. / 256.)));
 
+    // storeColor(&frame, launchIndex, color);
 
     // storeColor(&frame, launchIndex, (pointInfo.normalShading + 1) / 2.);
 }

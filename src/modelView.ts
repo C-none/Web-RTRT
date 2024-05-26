@@ -9,12 +9,19 @@ let camera: any, scene: any, renderer: any;
 init();
 
 function init() {
+    // let canvas = document.createElement('canvas');
+    // canvas.width = 1920;
+    // canvas.height = 1080;
+    // canvas.style.width = `${1920 / devicePixelRatio}px`;
+    // canvas.style.height = `${1080 / devicePixelRatio}px`;
 
+    // canvas.style.alignSelf = 'center';
+    // document.body.appendChild(canvas);
     // const container = document.querySelector('canvas');
     // document.body.appendChild(container);
 
-    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.25, 2000);
-    camera.position.set(- 1.8, 0.6, 2.7);
+    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 2000);
+    camera.position.set(0.3, 0, 0);
 
     scene = new THREE.Scene();
 
@@ -33,9 +40,10 @@ function init() {
             const draco = new DRACOLoader().setDecoderPath('./three/draco/');
             const loader = new GLTFLoader().setDRACOLoader(draco);
             // const loader = new GLTFLoader();
-            loader.load('assets/bistro_external/external.gltf', async function (gltf) {
+            loader.load('assets/stanford_bunny/bunny.gltf', async function (gltf) {
 
                 const model = gltf.scene;
+                model.scale.set(10, 10, 10);
 
                 // wait until the model can be added to the scene without blocking due to shader compilation
                 model.traverse((child) => {
@@ -75,9 +83,9 @@ function init() {
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.addEventListener('change', render); // use if there is no animation loop
-    controls.minDistance = 0.5;
+    controls.minDistance = 0.01;
     controls.maxDistance = 1000;
-    controls.target.set(0, 0, - 0.2);
+    controls.target.set(0, 0.1, 0);
     controls.update();
 
     window.addEventListener('resize', onWindowResize);

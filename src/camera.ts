@@ -61,8 +61,8 @@ class CameraManager {
         this.controls = new OrbitControls(this.camera, this.device.canvas);
         // this.controls.enableDamping = true;
         // this.controls.dampingFactor = 0.02
-        this.controls.target.set(0, 5, 0);
-        this.camera.position.set(-4.5, 5, 0);
+        this.controls.target.set(0, 4, 0);
+        this.camera.position.set(-4.5, 4, 0);
         // this.controls.target.set(0, 0, 0);
         // this.camera.position.set(0, 0, 2);
         this.controls.update();
@@ -85,10 +85,10 @@ class CameraManager {
         this.Halton_2_3.forEach(pair => {
             // pair[0] /= 16*device.upscaleRatio*2;
             // pair[1] /= 16*device.upscaleRatio*2;
-            // pair[0] /= 16 * device.upscaleRatio;
-            // pair[1] /= 16 * device.upscaleRatio;
-            pair[0] /= 16;
-            pair[1] /= 16;
+            pair[0] /= 16 * device.upscaleRatio;
+            pair[1] /= 16 * device.upscaleRatio;
+            // pair[0] /= 16;
+            // pair[1] /= 16;
         });
         this.jitter_index = 0;
         this.jitter = device.device.createBuffer({

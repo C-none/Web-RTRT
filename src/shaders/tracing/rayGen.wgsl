@@ -33,6 +33,7 @@ struct GeometryInfo {
 // #include <BSDF.wgsl>;
 
 override halfConeAngle = 0.0;
+override ENABLE_DI: bool = true;
 override ENABLE_GI: bool = true;
 override WIDTH: u32;
 override HEIGHT: u32;
@@ -105,35 +106,35 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
     var light: Light;
     var wo: vec3f;
     var dist: f32;
-
-    for (var i = 0; i < 8; i = i + 1) {
-        light = sampleLight();
-        let samplePdf = sampleLightProb(light);
-        wo = light.position - shadingPoint;
-        dist = length(wo);
-        wo = normalize(wo);
-        if dot(wo, pointInfo.normalShading) <= 0.0 || dot(wo, pointInfo.normalGeo) <= 0.0 {
-            reservoirCurGI.M += 1;
+    if ENABLE_DI {
+        for (var i = 0; i < 8; i = i + 1) {
+            light = sampleLight();
+            let samplePdf = sampleLightProb(light);
+            wo = light.position - shadingPoint;
+            dist = length(wo);
+            wo = normalize(wo);
+            if dot(wo, pointInfo.normalShading) <= 0.0 || dot(wo, pointInfo.normalGeo) <= 0.0 {
+                reservoirCurGI.M += 1;
             continue;
+            }
+            geometryTerm_luminance = light.intensity / (dist * dist);
+            bsdfLuminance = BSDFLuminance(pointInfo, wo, -direction);
+            pHat = bsdfLuminance * geometryTerm_luminance;
+            updateReservoirDI(&reservoirCurDI, light.id, pHat / samplePdf);
         }
-        geometryTerm_luminance = light.intensity / (dist * dist);
-        bsdfLuminance = BSDFLuminance(pointInfo, wo, -direction);
-        pHat = bsdfLuminance * geometryTerm_luminance;
-        updateReservoirDI(&reservoirCurDI, light.id, pHat / samplePdf);
-    }
 
     // check visibility
-        {
-        light = getLight(reservoirCurDI.lightId);
-        wo = light.position - shadingPoint;
-        dist = length(wo);
-        wo = normalize(wo);
-        if traceShadowRay(shadingPoint, wo, dist) {
-            reservoirCurDI.W = 0.0;
-        // reservoirCurDI.w_sum = 0.0;
+            {
+            light = getLight(reservoirCurDI.lightId);
+            wo = light.position - shadingPoint;
+            dist = length(wo);
+            wo = normalize(wo);
+            if traceShadowRay(shadingPoint, wo, dist) {
+                reservoirCurDI.W = 0.0;
+                reservoirCurDI.w_sum = 0.0;
+            }
         }
     }
-
     // indirect illumination
     if ENABLE_GI {
         let sampleVec: vec4f = samplingHemisphere();
@@ -201,21 +202,22 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
     let posDiff = pointPrev.pos - pointInfo.pos;
     let planeDist = abs(dot(posDiff, pointInfo.normalShading));
     if dot(pointInfo.normalShading, pointPrev.normalShading) > 0.5 && planeDist < 0.05 {
-        color = vec3f(1.0);
-        if reservoirPrevDI.W > 0.0 {
-            const capped = 16 ;
-            reservoirPrevDI.M = min(reservoirPrevDI.M, capped);
-            light = getLight(reservoirPrevDI.lightId);
-            wo = light.position - shadingPoint;
-            dist = length(wo);
-            wo = normalize(wo);
-            if dot(wo, pointInfo.normalShading) > 0.0 && dot(wo, pointInfo.normalGeo) > 0.0 {
-                geometryTerm_luminance = light.intensity / (dist * dist);
-                bsdfLuminance = BSDFLuminance(pointInfo, wo, -direction);
-                pHat = bsdfLuminance * geometryTerm_luminance;
-                reservoirPrevDI.w_sum = pHat * reservoirPrevDI.W * f32(reservoirPrevDI.M);
+        if ENABLE_DI {
+            if reservoirPrevDI.W > 0.0 {
+                const capped = 8 * 5 ;
+                reservoirPrevDI.M = min(reservoirPrevDI.M, capped);
+                light = getLight(reservoirPrevDI.lightId);
+                wo = light.position - shadingPoint;
+                dist = length(wo);
+                wo = normalize(wo);
+                if dot(wo, pointInfo.normalShading) > 0.0 && dot(wo, pointInfo.normalGeo) > 0.0 {
+                    geometryTerm_luminance = light.intensity / (dist * dist);
+                    bsdfLuminance = BSDFLuminance(pointInfo, wo, -direction);
+                    pHat = bsdfLuminance * geometryTerm_luminance;
+                    reservoirPrevDI.w_sum = pHat * reservoirPrevDI.W * f32(reservoirPrevDI.M);
 
-                combineReservoirsDI(&reservoirCurDI, reservoirPrevDI);
+                    combineReservoirsDI(&reservoirCurDI, reservoirPrevDI);
+                }
             }
         }
         if ENABLE_GI {
@@ -252,27 +254,29 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
     // compute Weight
         {
         // DI
-        light = getLight(reservoirCurDI.lightId);
-        wo = light.position - shadingPoint;
-        dist = length(wo);
-        wo = normalize(wo);
-        geometryTerm_luminance = light.intensity / (dist * dist);
-        bsdfLuminance = BSDFLuminance(pointInfo, wo, -direction);
-        pHat = bsdfLuminance * geometryTerm_luminance;
-        if pHat > 0.0 {
-            reservoirCurDI.W = reservoirCurDI.w_sum / max(0.01, pHat) / f32(reservoirCurDI.M);
-        } else {
-            reservoirCurDI.W = 0.0;
-            // reservoirCurDI.w_sum = 0.0;
+        if ENABLE_DI {
+            light = getLight(reservoirCurDI.lightId);
+            wo = light.position - shadingPoint;
+            dist = length(wo);
+            wo = normalize(wo);
+            geometryTerm_luminance = light.intensity / (dist * dist);
+            bsdfLuminance = BSDFLuminance(pointInfo, wo, -direction);
+            pHat = bsdfLuminance * geometryTerm_luminance;
+            if pHat > 0.0 {
+                reservoirCurDI.W = reservoirCurDI.w_sum / max(1e-3, pHat) / f32(reservoirCurDI.M);
+            } else {
+                reservoirCurDI.W = 0.0;
+                reservoirCurDI.w_sum = 0.0;
+            }
         }
 
         // GI
         if ENABLE_GI {
-            reservoirCurGI.W = reservoirCurGI.w_sum / max(0.01, luminance(reservoirCurGI.Lo)) / f32(reservoirCurGI.M);
+            reservoirCurGI.W = reservoirCurGI.w_sum / max(1e-3, luminance(reservoirCurGI.Lo)) / f32(reservoirCurGI.M);
         }
     }
 
-    // random select light
+    // // random select light
     //     {
     //     let light = sampleLight();
     //     let samplePdf = sampleLightProb(light);
@@ -291,11 +295,11 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
     //     } else {
     //         visibility = 1.0;
     //     }
-    //     color = bsdf * geometryTerm * visibility / samplePdf / pointInfo.baseColor;
+    //     color = bsdf * geometryTerm * visibility / samplePdf;
     // }
 
-    // reference color
-    // for (var i = 0; i < 4; i = i + 1) {
+    // // reference color
+    // for (var i = 0; i < 11; i = i + 1) {
     //     let light = getLight(u32(i));
     //     var bsdf = vec3f(0.1);
     //     var wo = light.position - shadingPoint;
@@ -316,5 +320,5 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
     storeGBuffer(launchIndex, pointInfo.pos, pointInfo.normalShading, pointInfo.baseColor, pointInfo.metallicRoughness);
     // // write reservoir
     storeReservoir(&currentReservoir, launchIndex, reservoirCurDI, reservoirCurGI, seed);
-    // storeColor(&frame, launchIndex, color);
+    // storeColor(&frame, launchIndex, color / pointInfo.baseColor);
 }

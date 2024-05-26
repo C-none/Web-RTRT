@@ -34,7 +34,18 @@ struct HitInfo {
     isHit: bool,
 };
 
+// fn unpackPrimHitInfo(primId: u32) -> PrimHitInfo {
+//     const triStride = 9u;
+//     const vtxStride = 3u;
+//     var primHitInfo = PrimHitInfo(array<vec4f, 3 >(vec4<f32>(0.0), vec4<f32>(0.0), vec4<f32>(0.0)));
+//     for (var i = 0u; i < 3u; i = i + 1u) {
+//         primHitInfo.pos[i] = vec4<f32>(vertices[primId * triStride + i * vtxStride], vertices[primId * triStride + i * vtxStride + 1u], vertices[primId * triStride + i * vtxStride + 2u], 1.0);
+//     }
+//     return primHitInfo;
+// }
 fn unpackPrimHitInfo(primId: u32) -> PrimHitInfo {
+    const triStride = 9;
+    const vtxStride = 3;
     let offset = vec3u(indices[primId * 3], indices[primId * 3 + 1], indices[primId * 3 + 2]);
     return PrimHitInfo(array<vec4f, 3 >(vertices[offset.x], vertices[offset.y], vertices[offset.z]));
 }

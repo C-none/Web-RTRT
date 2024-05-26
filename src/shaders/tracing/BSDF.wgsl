@@ -53,20 +53,22 @@ fn FmetallicLuminance(baseColorLuminance: f32, roughness: f32, ndoth: f32, h: ve
 }
 
 fn BSDF(shadingPoint: PointInfo, wo: vec3f, wi: vec3f) -> vec3f {
+
+    let ndoto = max(1e-5, dot(shadingPoint.normalShading, wo));
     let h = normalize(wi + wo);
     let ndoti = max(1e-5, dot(shadingPoint.normalShading, wi));
-    let ndoto = max(1e-5, dot(shadingPoint.normalShading, wo));
     let ndoth = max(1e-5, dot(shadingPoint.normalShading, h));
     let hdoto = dot(h, wo);
     let diffuse = Fdiffuse(shadingPoint.baseColor, shadingPoint.metallicRoughness.y, ndoti, ndoto, hdoto);
     let metallic = Fmetallic(shadingPoint.baseColor, shadingPoint.metallicRoughness.y, ndoth, h, hdoto, ndoti, ndoto);
     return (1.0 - shadingPoint.metallicRoughness.x) * diffuse + (shadingPoint.metallicRoughness.x) * metallic;
-    // return shadingPoint.baseColor * INVPI;
+    // return shadingPoint.baseColor * INVPI * ndoto;
 }
 
 fn BSDFLuminance(shadingPoint: PointInfo, wo: vec3f, wi: vec3f) -> f32 {
-    let ndoto = max(1e-4, dot(shadingPoint.normalShading, wo));
-    return luminance(shadingPoint.baseColor) * INVPI * ndoto;
+    let ndoto = max(0.0, dot(shadingPoint.normalShading, wo));
+    return INVPI * ndoto;
+    // return 1;
 
     // let h = normalize(wi + wo);
     // let ndoti = max(0.000, dot(shadingPoint.normalShading, wi));

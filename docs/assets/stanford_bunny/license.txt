@@ -1,0 +1,11 @@
+Model Information:
+* title:	Stanford Bunny
+* source:	https://sketchfab.com/3d-models/stanford-bunny-43f266d6cd6e4c6888b9943557528c0f
+* author:	darwinsenior (https://sketchfab.com/darwinsenior)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Stanford Bunny" (https://sketchfab.com/3d-models/stanford-bunny-43f266d6cd6e4c6888b9943557528c0f) by darwinsenior (https://sketchfab.com/darwinsenior) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

@@ -25,6 +25,7 @@ fn Jacobian(x: vec3f, reservoir: ReservoirGI) -> f32 {
     let thetaq = dot(reservoir.ns, normalize(qs));
     let thetar = dot(reservoir.ns, normalize(rs));
     return thetar / thetaq * dot(qs, qs) / dot(rs, rs);
+    // return thetar / thetaq;
 }
 
 fn updateReservoirGI(reservoir: ptr<function,ReservoirGI>, xv: vec3f, nv: vec3f, xs: vec3f, ns: vec3f, w: f32, Lo: vec3f, lightId: u32) {

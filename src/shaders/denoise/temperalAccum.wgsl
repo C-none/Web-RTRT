@@ -32,7 +32,7 @@ fn loadPosition(gBuffer: ptr<storage,array<vec4f>, read_write>, launchIndex: u32
 fn validateReprojection(normalCenter: vec3f, posCenter: vec3f, posPre: vec3f) -> bool {
     let posDiff = posCenter - posPre;
     let planeDist = abs(dot(normalCenter, posDiff));
-    return planeDist < 0.01;
+    return planeDist < 0.001;
 }
 const BORDER: i32 = 1;
 const SHARED_SIZE: i32 = BATCH_SIZE + BORDER * 2;
@@ -142,7 +142,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
             sumIllum /= sumWeight;
             sumMoment /= sumWeight;
             sumHistoryLength /= sumWeight;
-            historyLengthOut = clamp(sumHistoryLength + 1., 1., 3.);
+            historyLengthOut = clamp(sumHistoryLength + 1., 1., 5.);
             var alpha = 1. / historyLengthOut;
 
             // history clamping
@@ -154,14 +154,14 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
             let historyFactor = exp(- 1 * pow(varRatio, 2) * log(1e-2 * length(posDiff) + 1.000));
 
             historyLengthOut *= historyFactor;
-            historyLengthOut = clamp(historyLengthOut, 1.1, 3.);
+            historyLengthOut = clamp(historyLengthOut, 1.1, 5.);
             alpha = 1. / historyLengthOut;
             momentOut = mix(sumMoment, vec2f(illumSampLuminance, illumSampLuminance * illumSampLuminance), alpha);
             variance = max(momentOut.y - momentOut.x * momentOut.x, 1e-5);
 
             // let deviation = sqrt(variance);
             illumOut = mix(sumIllum, illumSamp, alpha);
-            color = vec3f(historyFactor);
+            // color = vec3f(historyFactor);
         } else {
             sumIllum = vec3f(0);
             illumOut = illumSamp;

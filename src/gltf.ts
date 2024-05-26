@@ -1,5 +1,4 @@
 import * as THREE from 'three'
-import { GLTFLoader, DRACOLoader, KTX2Loader } from 'three/examples/jsm/Addons.js';
 import { webGPUDevice } from './device';
 import { LogOnScreen } from './utils';
 import * as GPUUtils from 'webgpu-utils';
@@ -33,6 +32,15 @@ class Mesh {
     vertexCount: number = 0;
     primitiveCount: number = 0;
     constructor(mesh: THREE.Mesh) {
+        if (mesh.geometry.attributes.uv === undefined) {
+
+            mesh.geometry.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(mesh.geometry.attributes.position.count * 2), 2));
+            // initialize uv with (0.5,0.5)
+            let uv = mesh.geometry.attributes.uv.array as Float32Array;
+            for (let i = 0; i < uv.length; i += 2) {
+                uv[i] = uv[i + 1] = 0.5;
+            }
+        }
         if (mesh.geometry.attributes.tangent === undefined) {
             mesh.geometry.computeTangents();
         }
@@ -59,6 +67,9 @@ class textureManager {
         if (this.textureMap.has(texture.name)) {
             retIndex = this.textureMap.get(texture.name);
         } else {
+            if (!texture.source.data) {
+                console.log(texture);
+            }
             this.Resolution = Math.max(texture.source.data.height as number, this.Resolution);
             retIndex = this.textureMap.size;
             this.textureMap.set(texture.name, this.Storages.length);
@@ -119,9 +130,9 @@ class gltfmodel {
     rasterVtxBuffer: GPUBuffer;
     vertexSum: number = 0;
     triangleSum: number = 0;
-    async init(path: string, device: webGPUDevice): Promise<void> {
+    async init(model: any, device: webGPUDevice): Promise<void> {
 
-        await this.loadModel(path);
+        await this.loadModel(model);
         // this.loadTriangle();
         this.prepareRasterVtxBuffer(device);
         this.prepareVtxIdxArray();
@@ -136,19 +147,7 @@ class gltfmodel {
             resolve();
         });
     }
-    async loadModel(path: string): Promise<void> {
-        let loader = new GLTFLoader().setDRACOLoader(new DRACOLoader().setDecoderPath('./three/draco/'));
-
-        let gltf = await loader.loadAsync(path, (xhr) => {
-            if (xhr.loaded / xhr.total - 1 < 0.001) {
-                LogOnScreen("textures downloading...");
-            } else {
-                LogOnScreen("model downloading: " + (xhr.loaded / xhr.total * 100).toPrecision(3) + "%");
-            }
-            console.log('loading: ' + (xhr.loaded / xhr.total * 100) + '%');
-        }) as any;
-        const model = gltf.scene;
-        // console.log(model);
+    async loadModel(model: any): Promise<void> {
 
         // find mesh without normal map and delete it.
         model.traverse((child: THREE.Object3D) => {

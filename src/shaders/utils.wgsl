@@ -14,14 +14,15 @@
 
 // Cry Engine 3 Normal Encoding
 fn normalEncode(normal: vec3f) -> u32 {
-    return pack2x16float(select(normalize(normal.xy), vec2f(1, 0), dot(normal.xy, normal.xy) == 0.0) * sqrt(normal.z * 0.5 + 0.5));
+    return pack2x16float(select(normalize(normal.xy), vec2f(1, 1), dot(normal.xy, normal.xy) == 0.0) * sqrt(normal.z * 0.5 + 0.5));
 }
 
 fn normalDecode(encoded: u32) -> vec3f {
     let g = unpack2x16float(encoded);
-    var ret = vec3f(0, 0, dot(g, g) * 2 - 1);
-    ret = vec3f(select(normalize(g) * sqrt(1 - ret.z * ret.z), vec2f(0), dot(g, g) == 0.0), ret.z);
-    return ret;
+    let g2 = dot(g, g);
+    var ret = vec3f(0, 0, g2 * 2 - 1);
+    ret = vec3f(select(normalize(g) * sqrt(1 - ret.z * ret.z), vec2f(0), g2 == 0.0 || g2 > 1), ret.z);
+    return normalize(ret);
 }
 
 // Stereographic Projection
@@ -33,6 +34,23 @@ fn normalDecode(encoded: u32) -> vec3f {
 //     let XY = unpack2x16float(encoded);
 //     let denom = 1.0 + dot(XY, XY);
 //     return vec3f(2.0 * XY, denom - 2) / denom;
+// }
+
+// Octahedron-normal vectors
+// fn normalEncode(normal: vec3f) -> u32 {
+//     var p = normal / dot(vec3f(1.), abs(normal));
+//     if p.z < 0 {
+//         p = vec3f((1 - abs(p.yx)) * select(-1., 1., all(p.xy >= vec2f(0))), p.z);
+//     }
+//     return pack2x16snorm(p.xy);
+// }
+
+// fn normalDecode(encoded: u32) -> vec3f {
+//     var p = unpack2x16snorm(encoded);
+//     var n = vec3f(p, 1 - abs(p.x) - abs(p.y));
+//     var t = max(-n.z, 0);
+//     n = vec3f(n.xy + select(t, -t, all(n.xy >= vec2f(0))), n.z);
+//     return normalize(n);
 // }
 
 fn luminance(color: vec3f) -> f32 {

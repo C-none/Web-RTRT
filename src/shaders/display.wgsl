@@ -37,10 +37,12 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     let origin_pos: vec2u = vec2u(vec2f(screen_pos) / scale_ratio);
     let origin_pos_idx: u32 = origin_pos.y * origin_size.x + origin_pos.x;
 
+    _ = zFar;
+    _ = zNear;
     // linear depth
     // let depth = (textureSampleLevel(depthBuffer, samp, vec2f(origin_pos) / vec2f(origin_size), 0) + 1.0) / 2.0;
-    let depth = (textureLoad(depthBuffer, origin_pos, 0) + 1.0) / 2.0;
-    let zlinear = zNear * zFar / (zFar + depth * (zNear - zFar));
+    // let depth = (textureLoad(depthBuffer, origin_pos, 0) + 1.0) / 2.0;
+    // let zlinear = zNear * zFar / (zFar + depth * (zNear - zFar));
     // textureStore(currentDisplay, screen_pos, vec4f(vec3f(textureLoad(depthBuffer, origin_pos, 0)), 1.0));
 
     // [0, width] x [0, height] range of motion vector
@@ -48,7 +50,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     // |
     // v
     // Y
-    let motionVec: vec2f = unpack2x16float(textureLoad(motionVec, origin_pos, 0).r) * vec2f(origin_size);
+    // let motionVec: vec2f = unpack2x16float(textureLoad(motionVec, origin_pos, 0).r) * vec2f(origin_size);
     // textureStore(currentDisplay, screen_pos, vec4f(motionVec.xy * 0.005 + 0.5, 0.0, 1.0));
 
     // raytracing depth

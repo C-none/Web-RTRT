@@ -7,6 +7,6 @@ export default defineConfig({
     emptyOutDir: true,
     target: "esnext",
   },
-  // plugins: [basicSsl()],
+  plugins: [basicSsl()],
   port: 5173,
 });
