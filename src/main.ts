@@ -136,7 +136,7 @@ class Application {
         let sponza = await loader.loadAsync("./assets/sponza/sponza.gltf") as any;
         sponza = sponza.scene;
 
-        sponza.add(bunny);
+        sponza.add(bunny.children[0]);
         this.model = new gltfmodel();
         await this.model.init(sponza, this.device);
         this.lights = new LightManager(sponzaLight, this.device);
