@@ -20,12 +20,12 @@ struct ReservoirGI {
 }
 
 fn Jacobian(x: vec3f, reservoir: ReservoirGI) -> f32 {
-    let qs = reservoir.xv - reservoir.xs;
-    let rs = x - reservoir.xs;
-    let thetaq = dot(reservoir.ns, normalize(qs));
-    let thetar = dot(reservoir.ns, normalize(rs));
-    return thetar / thetaq * dot(qs, qs) / dot(rs, rs);
-    // return thetar / thetaq;
+    return 1;
+    // let qs = reservoir.xv - reservoir.xs;
+    // let rs = x - reservoir.xs;
+    // let thetaq = max(1e-5, dot(reservoir.ns, normalize(qs)));
+    // let thetar = max(1e-5, dot(reservoir.ns, normalize(rs)));
+    // return thetar / thetaq * dot(qs, qs) / dot(rs, rs);
 }
 
 fn updateReservoirGI(reservoir: ptr<function,ReservoirGI>, xv: vec3f, nv: vec3f, xs: vec3f, ns: vec3f, w: f32, Lo: vec3f, lightId: u32) {

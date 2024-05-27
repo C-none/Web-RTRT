@@ -10,7 +10,6 @@ class rayTracing {
     model: gltfmodel;
     camera: CameraManager;
     lights: LightManager;
-    // lightCount: number = 11;
     spatialReuseIteration: number = 2;
     DI_FLAG: number = 1;
     GI_FLAG: number = 0;
@@ -25,7 +24,6 @@ class rayTracing {
     previousGBufferAttri: GPUBuffer;
     outputBuffer: GPUBuffer;
     uniformBuffer: GPUBuffer;
-    // lightBuffer: GPUBuffer;
     sampler: GPUSampler;
 
     currentReservoir: GPUBuffer;
@@ -561,7 +559,7 @@ class rayTracing {
         accumulateEncoder.dispatchWorkgroups(Math.ceil(originWidth / 8), Math.ceil(originHeight / 8), 1);
         accumulateEncoder.end();
 
-        if (this.spatialReuseIteration % 2 == 0) {
+        if (this.spatialReuseIteration % 2 == 1) {
             commandEncoder.copyBufferToBuffer(this.currentReservoir, 0, this.previousReservoir, 0, 16 * 4 * originWidth * originHeight);
         }
     }

@@ -42,6 +42,9 @@ class Mesh {
             }
         }
         if (mesh.geometry.attributes.tangent === undefined) {
+            if (mesh.geometry.attributes.normal === undefined) {
+                mesh.geometry.computeVertexNormals();
+            }
             mesh.geometry.computeTangents();
         }
         mesh.geometry.computeBoundingSphere();
@@ -60,6 +63,8 @@ class textureManager {
     Resolution: number = 4;
 
     static rszCtx: CanvasRenderingContext2D;
+    static rszCanvas: HTMLCanvasElement;
+    static lock: boolean = false;
 
     add(texture: any): number {
         let retIndex = 0xffffffff;
@@ -78,17 +83,19 @@ class textureManager {
         // resize to the same resolution
         this.Resolution = Math.pow(2, Math.ceil(Math.log2(this.Resolution)));
         if (!textureManager.rszCtx) {
-            let rszCanvas = document.createElement('canvas');
-            rszCanvas.width = this.Resolution;
-            rszCanvas.height = this.Resolution;
-            textureManager.rszCtx = rszCanvas.getContext('2d');
+            textureManager.rszCanvas = document.createElement('canvas');
         }
+        while (textureManager.lock);
+        textureManager.lock = true;
+        textureManager.rszCanvas.width = this.Resolution;
+        textureManager.rszCanvas.height = this.Resolution;
+        textureManager.rszCtx = textureManager.rszCanvas.getContext('2d', { willReadFrequently: true });
         for (let tex of this.Storages) {
             if (tex.source.data.width === this.Resolution && tex.source.data.height === this.Resolution) continue;
             textureManager.rszCtx.drawImage(tex.source.data, 0, 0, this.Resolution, this.Resolution);
-            tex.source.data = await createImageBitmap(textureManager.rszCtx.getImageData(0, 0, this.Resolution, this.Resolution));
+            tex.source.data = await createImageBitmap(textureManager.rszCanvas);
         }
-
+        textureManager.lock = false;
         // create texture
         let textureUsage = GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT;
         this.texture = device.device.createTexture({
@@ -101,6 +108,9 @@ class textureManager {
         });
 
         for (let tex of this.Storages) {
+            if (tex.source.data.width !== this.Resolution || tex.source.data.height !== this.Resolution) {
+                continue;
+            }
             device.device.queue.copyExternalImageToTexture(
                 { source: tex.source.data, },
                 { texture: this.texture, origin: { x: 0, y: 0, z: this.textureMap.get(tex.name) }, },
@@ -134,9 +144,9 @@ class gltfmodel {
         this.prepareRasterVtxBuffer(device);
         this.prepareVtxIdxArray();
         let finished1 = this.prepareBVH(device);
-        this.albedo.submit(device, 'rgba8unorm-srgb');
-        this.normalMap.submit(device);
-        this.specularRoughnessMap.submit(device);
+        await this.albedo.submit(device, 'rgba8unorm-srgb');
+        await this.normalMap.submit(device);
+        await this.specularRoughnessMap.submit(device);
         this.allocateBuffer(device);
         this.writeBuffer();
         return new Promise(async (resolve, reject) => {

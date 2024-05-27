@@ -16,8 +16,8 @@ fn ACESToneMapping(color: vec3f, adapted_lum: f32) -> vec3f {
     const D = 0.59;
     const E = 0.14;
     let ret = color * adapted_lum;
-    return (ret * (A * ret + B)) / (ret * (C * ret + D) + E);
-    // return color;
+    // return (ret * (A * ret + B)) / (ret * (C * ret + D) + E);
+    return color;
 }
 
 fn readColor(buffer: ptr<storage,array<vec2u>,read_write>, idx: u32) -> vec3f {

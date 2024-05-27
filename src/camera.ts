@@ -60,7 +60,7 @@ class CameraManager {
         this.camera = new THREE.PerspectiveCamera(60, this.device.canvas.width / this.device.canvas.height, 0.01, 50);
         this.controls = new OrbitControls(this.camera, this.device.canvas);
         // this.controls.enableDamping = true;
-        // this.controls.dampingFactor = 0.02
+        // this.controls.dampingFactor = 0.001;
         this.controls.target.set(0, 3, 0);
         this.camera.position.set(-4.5, 3, 0);
         // this.controls.target.set(0, 0, 0);

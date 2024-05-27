@@ -52,13 +52,18 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
         wo = light.position - shadingPoint;
         dist = length(wo);
         wo = normalize(wo);
-        if reservoirDI.W < 0. || (reservoirDI.W > 0. && traceShadowRay(shadingPoint, wo, dist)) {
+        if reservoirDI.W > 0. && traceShadowRay(shadingPoint, wo, dist) {
             reservoirDI.W = 0.;
             reservoirDI.w_sum = 0.;
         }
         bsdf = BSDF(pointInfo, wo, wi);
         geometryTerm = light.color * light.intensity / (dist * dist);
         color += max(0, reservoirDI.W) * bsdf * geometryTerm;
+        // color += bsdf * geometryTerm;
+        // if reservoirDI.W > 1e5 {
+        //     reservoirDI.W = 0.;
+        //     reservoirDI.w_sum = 0.;
+        // }
     }
     if ENABLE_GI {
         if reservoirGI.W > 0 {
@@ -72,14 +77,19 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
                 reservoirGI.w_sum = 0.;
             }
             bsdf = BSDF(pointInfo, wo, wi);
-            geometryTerm = reservoirGI.Lo * 4;
-                // geometryTerm = reservoirGI.Lo / Jacobian(shadingPoint, reservoirGI);
+            geometryTerm = reservoirGI.Lo * 4 / Jacobian(shadingPoint, reservoirGI);
             color += reservoirGI.W * bsdf * geometryTerm;
+            // if reservoirGI.W > 1e15 {
+            //     reservoirGI.W = 0.;
+            //     reservoirGI.w_sum = 0.;
+            // }
         }
     }
-    storeColor(&frame, launchIndex, color / max(pointInfo.baseColor, vec3f(1. / 256.)));
+    storeReservoir(&currentReservoir, launchIndex, reservoirDI, reservoirGI, seed);
 
-    // storeColor(&frame, launchIndex, pointInfo.baseColor);
+    storeColor(&frame, launchIndex, color / max(pointInfo.baseColor, vec3f(1e-3)));
+
+    // storeColor(&frame, launchIndex, bsdf);
 
     // storeColor(&frame, launchIndex, (pointInfo.normalShading + 1) / 2.);
 }

@@ -11,7 +11,7 @@ import { BufferPool } from './screenBuffer';
 import * as THREE from 'three';
 import { GLTFLoader, DRACOLoader } from 'three/examples/jsm/Addons.js';
 import Stats from 'three/examples/jsm/libs/stats.module.js';
-import { GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
+import { Controller, GUI } from 'three/examples/jsm/libs/lil-gui.module.min.js';
 
 let stats = new Stats();
 document.body.appendChild(stats.dom);
@@ -20,13 +20,15 @@ let GPUdevice = await new webGPUDevice().init();
 
 enum sceneName {
     box,
+    room,
     sponza,
 };
 
 let conf = {
     flag: false,
-    upscaleRatio: GPUdevice.upscaleRatio,
     scene: sceneName.box,
+    upscaleRatio: GPUdevice.upscaleRatio,
+    superResolution: false,
     dynamicLight: false,
     GI_RIS: true,
     DI: true,
@@ -37,10 +39,14 @@ let conf = {
 }
 let gui = new GUI({ title: 'Settings' });
 {
-    gui.add(conf, 'upscaleRatio', 1, 4).name('Upscale Ratio').decimals(1).onFinishChange(() => {
+    gui.add(conf, 'scene', { 'Box': sceneName.box, 'Room': sceneName.room, 'Sponza': sceneName.sponza, }).name('Scene').onChange(() => {
         conf.flag = true;
     });
-    gui.add(conf, 'scene', { 'Box': sceneName.box, 'Sponza': sceneName.sponza }).name('Scene').onChange(() => {
+    (gui.children[0] as Controller).disable();
+    gui.add(conf, 'upscaleRatio', [1, 1.5, 2, 3, 4]).name('Upscale Ratio').onFinishChange(() => {
+        conf.flag = true;
+    });
+    gui.add(conf, 'superResolution').name('Super Resolution').onChange(() => {
         conf.flag = true;
     });
     gui.add(conf, 'dynamicLight').name('Dynamic Light').onChange(() => {
@@ -77,10 +83,10 @@ let gui = new GUI({ title: 'Settings' });
 let sponzaLight = Array<Light>();
 {
     sponzaLight = [
-        new Light(new Float32Array([-4, 8, 0]), new Float32Array([1, 0.5, 0.6]), 60),
-        new Light(new Float32Array([4, 8, 0]), new Float32Array([0.5, 1, 1]), 60),
+        new Light(new Float32Array([-4, 8, 0]), new Float32Array([1, 0.5, 0.6]), 40),
+        new Light(new Float32Array([4, 8, 0]), new Float32Array([0.5, 1, 1]), 40),
         new Light(new Float32Array([0, 8, 0]), new Float32Array([1, 1, 1]), 60),
-        new Light(new Float32Array([0, 3, 0]), new Float32Array([1, 1, 1]), 60),
+        new Light(new Float32Array([0, 3, 0]), new Float32Array([1, 1, 1]), 40),
         new Light(new Float32Array([8, 6, 3]), new Float32Array([1, 1, 0.7]), 40),
         new Light(new Float32Array([8, 6, -3]), new Float32Array([0.2, 0.5, 1]), 30),
         new Light(new Float32Array([-10, 6, -4]), new Float32Array([0.8, 0.8, 1]), 40),
@@ -124,12 +130,26 @@ let boxLight = Array<Light>();
         new Light(new Float32Array([0, 5.5, 0]), new Float32Array([1, 1, 1]), 20),
 
     ];
+    // for (let i = 0; i < 16; i++) {
+    //     // random initialize light
+    //     let position = new Float32Array([Math.random() * 10 - 5, Math.random() * 12 - 6, Math.random() * 10 - 5]);
+    //     let color = new Float32Array([Math.random(), Math.random(), Math.random()]);
+    //     let intensity = Math.random() * 3 + 5;
+    //     boxLight.push(new Light(position, color, intensity));
+    // }
+}
+let roomLight = Array<Light>();
+{
+    roomLight = [
+        new Light(new Float32Array([0, 0, 0]), new Float32Array([1, 1, 1]), 30),
+
+    ];
     for (let i = 0; i < 16; i++) {
         // random initialize light
-        let position = new Float32Array([Math.random() * 20 - 10, Math.random() * 12 - 6, Math.random() * 20 - 10]);
+        let position = new Float32Array([Math.random() * 16 - 8, Math.random() * 16 - 8, Math.random() * 16 - 8]);
         let color = new Float32Array([Math.random(), Math.random(), Math.random()]);
-        let intensity = Math.random() * 3 + 5;
-        boxLight.push(new Light(position, color, intensity));
+        let intensity = Math.random() * 10 + 10;
+        roomLight.push(new Light(position, color, intensity));
     }
 }
 
@@ -138,34 +158,60 @@ LogOnScreen("model downloading...");
 let bunny = await loader.loadAsync("./assets/stanford_bunny/bunny.gltf") as any;
 bunny = bunny.scene;
 bunny.children[0].geometry.rotateX(-Math.PI / 2);
-bunny.children[0].geometry.scale(10, 10, 10);
+bunny.children[0].geometry.scale(5, 5, 5);
 
 let box = await loader.loadAsync("./assets/box/scene.gltf") as any;
-box = box.scene;
+{
+    box = box.scene;
 
-for (let i = 0; i < box.children.length; i++) {
-    let child = box.children[i] as THREE.Mesh;
-    child.geometry.applyQuaternion(child.quaternion);
-    child.geometry.translate(child.position.x, child.position.y, child.position.z);
-    // child.geometry.translate(child.position);
-    for (let j = 0; j < child.geometry.attributes.tangent.array.length; j += 1) {
-        child.geometry.attributes.tangent.array[j] = 0;
+    for (let i = 0; i < box.children.length; i++) {
+        let child = box.children[i] as THREE.Mesh;
+        child.geometry.applyQuaternion(child.quaternion);
+        child.geometry.translate(child.position.x, child.position.y, child.position.z);
+        // child.geometry.translate(child.position);
+        for (let j = 0; j < child.geometry.attributes.tangent.array.length; j += 1) {
+            child.geometry.attributes.tangent.array[j] = 0;
+        }
+        child.geometry.scale(3, 3, 3);
     }
-    child.geometry.scale(3, 3, 3);
-}
 
-let boxBunny = bunny.children[0].clone();
-boxBunny.geometry.translate(0, -0.4, 0.5);
-boxBunny.geometry.scale(1.5, 1.5, 1.5);
-box.add(boxBunny);
+    let boxBunny = bunny.children[0].clone();
+    boxBunny.geometry.scale(4, 4, 4);
+    boxBunny.geometry.translate(0.5, -0.3, 0);
+    box.add(boxBunny);
+}
 let boxModel = new gltfmodel();
 await boxModel.init(box, GPUdevice);
 
+let roomModel = new gltfmodel();
+loader.load("./assets/room/scene.gltf", (gltf) => {
+    let room = gltf.scene;
+    room.scale.set(5, 5, 5);
+    roomModel.init(room, GPUdevice).then(() => {
+        LogOnScreen("room building finished!");
+    });
+});
+
+// let bathModel = new gltfmodel();
+// loader.load("./assets/bath/scene.gltf", (gltf) => {
+//     let bath = gltf.scene;
+//     bathModel.init(bath, GPUdevice).then(() => {
+//         LogOnScreen("bath building finished!");
+//     });
+// });
 
 let sponzaModel = new gltfmodel();
 loader.load("./assets/sponza/sponza.gltf", (gltf) => {
     let sponza = gltf.scene;
-    sponzaModel.init(sponza, GPUdevice);
+    let sponzaBunny = bunny.children[0].clone();
+    sponzaBunny.geometry.translate(0, 0, -0.5);
+    sponzaBunny.geometry.scale(0.5, 0.5, 0.5);
+    sponza.add(sponzaBunny);
+    sponzaModel.init(sponza, GPUdevice).then(() => {
+        LogOnScreen("sponza building finished!");
+        (gui.children[0] as Controller).enable();
+    });
+
 });
 
 class Application {
@@ -182,22 +228,6 @@ class Application {
     selectModel: sceneName;
     async init() {
         this.device = GPUdevice;
-
-        switch (conf.scene) {
-            case sceneName.sponza:
-                {
-                    this.model = sponzaModel;
-                    this.lights = new LightManager(sponzaLight, this.device);
-                    break;
-                }
-            case sceneName.box:
-                {
-                    this.model = boxModel;
-                    this.lights = new LightManager(boxLight, this.device);
-                    break;
-                }
-        };
-
         await this.reset();
         // console.log("my model:", this.model);
     }
@@ -224,6 +254,7 @@ class Application {
             if (conf.flag) {
                 this.rayTracing.dynamicLight = conf.dynamicLight;
                 this.denoiser.ENABLE_DENOISE = conf.denoiser;
+                this.display.ENABLE_SR = conf.superResolution;
                 this.rayTracing.spatialReuseIteration = conf.spatial ? 2 : 0;
                 if (this.rayTracing.DI_FLAG != (conf.DI ? 1 : 0)) {
                     this.rayTracing.DI_FLAG = conf.DI ? 1 : 0;
@@ -241,26 +272,18 @@ class Application {
                     this.rayTracing.TEMPORAL_FLAG = conf.temporal ? 1 : 0;
                     await this.rayTracing.init(this.lights);
                 }
-                if (conf.upscaleRatio != GPUdevice.upscaleRatio) {
-                    GPUdevice.upscaleRatio = conf.upscaleRatio;
-                    await this.reset();
+                if (conf.upscaleRatio != this.device.upscaleRatio) {
+                    const originWidth = Math.floor(this.device.canvas.width / conf.upscaleRatio);
+                    const originHeight = Math.floor(this.device.canvas.height / conf.upscaleRatio);
+                    if (16 * (4 * originWidth * originWidth) >= this.device.adapter.limits.maxStorageBufferBindingSize) {
+                        alert("exceed maxStorageBufferBindingSize, please increase upscaleRatio");
+                    } else {
+                        this.device.upscaleRatio = conf.upscaleRatio;
+                        await this.reset();
+                    }
                 }
                 if (conf.scene != this.selectModel) {
                     this.selectModel = conf.scene;
-                    switch (conf.scene) {
-                        case sceneName.sponza:
-                            {
-                                this.model = sponzaModel;
-                                this.lights = new LightManager(sponzaLight, this.device);
-                                break;
-                            }
-                        case sceneName.box:
-                            {
-                                this.model = boxModel;
-                                this.lights = new LightManager(boxLight, this.device);
-                                break;
-                            }
-                    };
                     await this.reset();
                 }
                 conf.flag = false;
@@ -273,9 +296,36 @@ class Application {
     }
 
     async reset() {
-        this.buffers = new BufferPool(this.device);
         this.camera = new CameraManager(this.device);
+        switch (conf.scene) {
+            case sceneName.sponza:
+                {
+                    this.camera.camera.position.set(-4.5, 5, 0);
+                    this.camera.controls.target.set(0, 5, 0);
 
+                    this.model = sponzaModel;
+                    this.lights = new LightManager(sponzaLight, this.device);
+                    break;
+                }
+            case sceneName.box:
+                {
+                    this.camera.camera.position.set(-10, 3, 0);
+                    this.camera.controls.target.set(0, 3, 0);
+                    this.model = boxModel;
+                    this.lights = new LightManager(boxLight, this.device);
+                    break;
+                }
+            case sceneName.room:
+                {
+                    this.camera.camera.position.set(3, -0.5, 0);
+                    this.camera.controls.target.set(0, -0.5, 0);
+                    this.model = roomModel;
+                    this.lights = new LightManager(roomLight, this.device);
+                    break;
+                }
+        };
+        this.camera.controls.update();
+        this.buffers = new BufferPool(this.device);
         this.vBuffer = new VBuffer(this.device, this.model, this.camera, this.buffers);
         await this.vBuffer.init();
 
@@ -290,10 +340,11 @@ class Application {
         await this.rayTracing.init(this.lights);
 
         this.denoiser = new Denoiser(this.device, this.buffers, this.camera);
-        await this.denoiser.init();
         this.denoiser.ENABLE_DENOISE = conf.denoiser;
+        await this.denoiser.init();
 
         this.display = new Display(this.device, this.buffers, this.camera);
+        this.display.ENABLE_SR = conf.superResolution;
     }
 }
 

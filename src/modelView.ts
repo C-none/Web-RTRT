@@ -37,14 +37,14 @@ function init() {
             render();
 
             // model
-            // const draco = new DRACOLoader().setDecoderPath('./three/draco/');
-            // const loader = new GLTFLoader().setDRACOLoader(draco);
-            const loader = new GLTFLoader();
-            loader.load('assets/box/scene.gltf', async function (gltf) {
+            const draco = new DRACOLoader().setDecoderPath('./three/draco/');
+            const loader = new GLTFLoader().setDRACOLoader(draco);
+            // const loader = new GLTFLoader();
+            loader.load('assets/bath/scene.gltf', async function (gltf) {
 
                 const model = gltf.scene;
-                model.scale.set(0.1, 0.1, 0.1);
-                // model.scale.set(10, 10, 10);
+                model.rotateY(Math.PI);
+                // model.scale.set(0.005, 0.005, 0.005);
 
                 // wait until the model can be added to the scene without blocking due to shader compilation
                 model.traverse((child) => {

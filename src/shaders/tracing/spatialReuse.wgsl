@@ -72,7 +72,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
         // check plane distance
         let posDiff = pointInfo.pos - neighbour_pointAttri.pos;
         let planeDist = abs(dot(posDiff, pointInfo.normalShading));
-        if planeDist < 0.01 && dot(pointInfo.normalShading, neighbour_pointAttri.normalShading) > .8 {
+        if planeDist < 0.001 && dot(pointInfo.normalShading, neighbour_pointAttri.normalShading) > .9 {
 
             if ENABLE_DI && neighbor_reservoirDI.W > 0. {
                 light = getLight(neighbor_reservoirDI.lightId);
@@ -96,8 +96,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
                 wo = normalize(wo);
                 if dot(wo, pointInfo.normalShading) > 0. && dot(-wo, neighbor_reservoirGI.ns) >= 0. {
                     // neighbor_reservoirGI.M /= scale;
-                    pHat = luminance(neighbor_reservoirGI.Lo);
-                    // pHat = luminance(neighbor_reservoirGI.Lo) / Jacobian(pointInfo.pos, neighbor_reservoirGI);
+                    pHat = luminance(neighbor_reservoirGI.Lo) / Jacobian(pointInfo.pos, neighbor_reservoirGI);
                     neighbor_reservoirGI.w_sum = pHat * neighbor_reservoirGI.W * f32(neighbor_reservoirGI.M);
                     combineReservoirsGI(&reservoirGI, neighbor_reservoirGI);
                 }
@@ -117,7 +116,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
             reservoirDI.W = 0.0;
             reservoirDI.w_sum = 0.0;
         } else {
-            reservoirDI.W = reservoirDI.w_sum / max(1e-2, pHat) / f32(reservoirDI.M);
+            reservoirDI.W = reservoirDI.w_sum / max(5e-2, pHat) / f32(reservoirDI.M);
         }
         if ENABLE_GI {
             reservoirGI.W = reservoirGI.w_sum / max(1e-3, luminance(reservoirGI.Lo)) / f32(reservoirGI.M);

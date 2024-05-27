@@ -18,6 +18,7 @@ class Display {
     currentFrameBuffer: GPUBuffer;
     previousFrameBuffer: GPUBuffer;
     sampler: GPUSampler;
+    ENABLE_SR: boolean = true;
 
     constructor(device: webGPUDevice, buffers: BufferPool, camera: CameraManager) {
         this.device = device;
