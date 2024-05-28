@@ -31,10 +31,10 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
     loadReservoir(&previousReservoir, launchIndex, &reservoirDI, &reservoirGI, &_seed);
 
     if reservoirDI.W < 0.0 {
-        storeReservoir(&currentReservoir, launchIndex, reservoirDI, reservoirGI, seed);
+        storeReservoir(&currentReservoir, launchIndex, reservoirDI, reservoirGI, _seed);
         return;
     }
-    seed = tea(GlobalInvocationID.y * screen_size.x + GlobalInvocationID.x, _seed, 4);
+    seed = tea(GlobalInvocationID.y * screen_size.x + GlobalInvocationID.x, _seed, 2 + ubo.seed % 4);
     var pointInfo: PointInfo;
     loadGBuffer(launchIndex, &pointInfo);
 

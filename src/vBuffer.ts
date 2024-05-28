@@ -83,7 +83,7 @@ class VBuffer {
         });
     }
     renderPassDescriptor: GPURenderPassDescriptor;
-    buildPipeline() {
+    buildPipeline(cullMode: GPUCullMode = 'none') {
         const module = this.device.device.createShaderModule({
             label: 'vBuffer',
             code: shaders.get('vBuffer.wgsl'),
@@ -133,7 +133,7 @@ class VBuffer {
             },
             primitive: {
                 topology: 'triangle-list',
-                cullMode: 'back',
+                cullMode: cullMode,
                 unclippedDepth: false,
             },
             depthStencil: {
@@ -165,10 +165,10 @@ class VBuffer {
         };
     }
 
-    async init() {
+    async init(cullMode: GPUCullMode = 'none') {
         this.buildBindGroupLayout();
         this.buildBindingGroup();
-        this.buildPipeline();
+        this.buildPipeline(cullMode);
     }
 
     record(commandEncoder: GPUCommandEncoder) {

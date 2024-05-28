@@ -7,7 +7,7 @@ class Denoiser {
     device: webGPUDevice;
     camera: CameraManager;
     patchSize: number = 8;
-    iteration: number = 3;
+    iteration: number = 0;
     ENABLE_DENOISE: boolean = true;
     reflectance: GPUBuffer;
     motionVec: GPUTexture;
@@ -410,27 +410,32 @@ class Denoiser {
         await this.buildPipeline();
         this.buildBindGroup();
     }
-
+    // cnt = 0;
     record(encoder: GPUCommandEncoder) {
         let originWidth = Math.floor(this.device.canvas.width / this.device.upscaleRatio);
         let originHeight = Math.floor(this.device.canvas.height / this.device.upscaleRatio);
-
+        let antiFireflyFlag = true;
         if (this.ENABLE_DENOISE == true) {
+            // this.cnt++;
             const temperalAccum = encoder.beginComputePass();
             temperalAccum.setPipeline(this.temporalAccumulatePipeline);
             temperalAccum.setBindGroup(0, this.temporalAccumulateBindGroup);
             temperalAccum.dispatchWorkgroups(Math.ceil(originWidth / this.patchSize), Math.ceil(originHeight / this.patchSize), 1);
             temperalAccum.end();
 
-            const firefly = encoder.beginComputePass();
-            firefly.setPipeline(this.fireflyPipeline);
-            firefly.setBindGroup(0, this.fireflyBindGroup);
-            firefly.dispatchWorkgroups(Math.ceil(originWidth / this.patchSize), Math.ceil(originHeight / this.patchSize), 1);
-            firefly.end();
-
+            if (antiFireflyFlag) {
+                const firefly = encoder.beginComputePass();
+                firefly.setPipeline(this.fireflyPipeline);
+                firefly.setBindGroup(0, this.fireflyBindGroup);
+                firefly.dispatchWorkgroups(Math.ceil(originWidth / this.patchSize), Math.ceil(originHeight / this.patchSize), 1);
+                firefly.end();
+            }
             if (this.iteration == 0) {
-                // encoder.copyBufferToBuffer(this.currentIllumination, 0, this.previousIllumination, 0, 2 * 4 * originWidth * originHeight);
-                encoder.copyBufferToBuffer(this.illumination, 0, this.previousIllumination, 0, 2 * 4 * originWidth * originHeight);
+                if (antiFireflyFlag) {
+                    encoder.copyBufferToBuffer(this.illumination, 0, this.previousIllumination, 0, 2 * 4 * originWidth * originHeight);
+                } else {
+                    encoder.copyBufferToBuffer(this.currentIllumination, 0, this.previousIllumination, 0, 2 * 4 * originWidth * originHeight);
+                }
             }
 
             encoder.copyBufferToBuffer(this.moment, 0, this.prevMoment, 0, 2 * 4 * originWidth * originHeight);
@@ -461,7 +466,7 @@ class Denoiser {
                 }
             }
         }
-        if (this.ENABLE_DENOISE == false || this.iteration % 2 == 0) {
+        if (this.ENABLE_DENOISE == false || (this.iteration % 2 == (antiFireflyFlag ? 0 : 1))) {
             encoder.copyBufferToBuffer(this.illumination, 0, this.currentIllumination, 0, 2 * 4 * originWidth * originHeight);
         }
 
@@ -470,6 +475,9 @@ class Denoiser {
         accumulate.setBindGroup(0, this.accumulateBindGroup);
         accumulate.dispatchWorkgroups(Math.ceil(originWidth / this.patchSize), Math.ceil(originHeight / this.patchSize), 1);
         accumulate.end();
+        // if (this.cnt == 2000) {
+        //     console.log("capture");
+        // }
     }
 
 }

@@ -124,7 +124,8 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
         );
         for (var i: i32 = 0; i < 4; i = i + 1) {
             let offset = offset22[i];
-            let screen_pos_pre_offset = screen_pos_pre -0.5 + offset;
+            let screen_pos_pre_offset = screen_pos_pre - 0.5 + offset;
+            // let screen_pos_pre_offset = screen_pos_pre + offset;
             let launchIndexOffset = getCoord(screen_pos_pre_offset);
             if !validateCoord(screen_pos_pre_offset) {
                 continue;
@@ -136,6 +137,12 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
                 sumHistoryLength += historyLengthPrevious[launchIndexOffset] * weight[i];
                 sumWeight += weight[i];
             }
+            // if validateReprojection(normalCenterAvg, posCenter, posPre) {
+            //     sumIllum += loadIllumination(&illumination_previous, u32(launchIndexOffset));
+            //     sumMoment += momentPrevious[launchIndexOffset] ;
+            //     sumHistoryLength += historyLengthPrevious[launchIndexOffset] ;
+            //     sumWeight += 1;
+            // }
         }
         let posPre = gBufferAttriPrevious[getCoord(screen_pos_pre)].xyz;
         if sumWeight > 0. {
@@ -145,19 +152,22 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
             historyLengthOut = clamp(sumHistoryLength + 1., 1., 5.);
             var alpha = 1. / historyLengthOut;
 
-            // history clamping
-            let variance_prev = max(sumMoment.y - sumMoment.x * sumMoment.x, 1e-5);
             momentOut = mix(sumMoment, vec2f(illumSampLuminance, illumSampLuminance * illumSampLuminance), alpha);
             variance = max(momentOut.y - momentOut.x * momentOut.x, 1e-5);
-            let posDiff = posCenter - posPre;
-            let varRatio = variance / variance_prev;
-            let historyFactor = exp(- 1 * pow(varRatio, 2) * log(1e-2 * length(posDiff) + 1.000));
 
-            historyLengthOut *= historyFactor;
-            historyLengthOut = clamp(historyLengthOut, 1.1, 5.);
-            alpha = 1. / historyLengthOut;
-            momentOut = mix(sumMoment, vec2f(illumSampLuminance, illumSampLuminance * illumSampLuminance), alpha);
-            variance = max(momentOut.y - momentOut.x * momentOut.x, 1e-5);
+            // history clamping
+                {
+                let variance_prev = max(sumMoment.y - sumMoment.x * sumMoment.x, 1e-5);
+                let posDiff = posCenter - posPre;
+                let varRatio = variance / variance_prev;
+                let historyFactor = exp(- 1 * pow(varRatio, 2) * log(1e-2 * length(posDiff) + 1.000));
+
+                historyLengthOut *= historyFactor;
+                historyLengthOut = clamp(historyLengthOut, 1.1, 5.);
+                alpha = 1. / historyLengthOut;
+                momentOut = mix(sumMoment, vec2f(illumSampLuminance, illumSampLuminance * illumSampLuminance), alpha);
+                variance = max(momentOut.y - momentOut.x * momentOut.x, 1e-5);
+            }
 
             // let deviation = sqrt(variance);
             illumOut = mix(sumIllum, illumSamp, alpha);

@@ -31,7 +31,7 @@
     <span
       style="
         position: absolute;
-        top: 20px;
+        bottom: 20px;
         left: 0;
         right: 0;
         margin: auto;
@@ -41,16 +41,16 @@
       "
     ></span>
     <script src="https://cdn.bootcss.com/FileSaver.js/1.3.8/FileSaver.min.js"></script>
-    <button onclick="download('canvas')">download</button>
+    <button onclick="download('webgpuCanvas')">download</button>
     <script>
       function download(selector) {
-        // 通过 API 获取目标 canvas 元素
-        const canvas = document.querySelector(selector);
+        // 通过 id 获取目标 canvas 元素
+        const canvas = document.getElementById(selector);
 
         // 创建一个 a 标签，并设置 href 和 download 属性
         const el = document.createElement("a");
         // 设置 href 为图片经过 base64 编码后的字符串，默认为 png 格式
-        el.href = canvas.toDataURL("image/bmp");
+        el.href = canvas.toDataURL("image/png", 1);
         el.download = "test.bmp";
 
         // 创建一个点击事件并对 a 标签进行触发

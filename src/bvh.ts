@@ -131,7 +131,7 @@ class BVHBuilder {
         if (depth > this.bvh.maxDepth)
             this.bvh.maxDepth = depth;
         this.handledNodes++;
-        if (this.handledNodes % Math.ceil(this.bvh.nodes.length / 200) == 0)
+        if (this.handledNodes % Math.ceil(this.bvh.nodes.length / 25) == 0)
             this.onProgress(this.handledNodes / this.bvh.nodes.length);
         if (cnt == 1) {
             this.bvh.nodes[parent].aabb = this.triangleView[begin].aabb;

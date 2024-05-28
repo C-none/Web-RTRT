@@ -9,6 +9,7 @@ class webGPUDevice {
     async init() {
         let size = { width: document.documentElement.clientWidth, height: document.documentElement.clientHeight };
         this.canvas = document.createElement('canvas');
+        this.canvas.id = "webgpuCanvas";
         const devicePixelRatio = window.devicePixelRatio || 1;
         const p1080 = { width: 1920, height: 1080 };
         const p720 = { width: 1280, height: 720 };

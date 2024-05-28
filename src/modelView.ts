@@ -40,11 +40,11 @@ function init() {
             const draco = new DRACOLoader().setDecoderPath('./three/draco/');
             const loader = new GLTFLoader().setDRACOLoader(draco);
             // const loader = new GLTFLoader();
-            loader.load('assets/bath/scene.gltf', async function (gltf) {
+            loader.load('assets/sea/scene.gltf', async function (gltf) {
 
                 const model = gltf.scene;
                 model.rotateY(Math.PI);
-                // model.scale.set(0.005, 0.005, 0.005);
+                model.scale.set(0.005, 0.005, 0.005);
 
                 // wait until the model can be added to the scene without blocking due to shader compilation
                 model.traverse((child) => {
@@ -74,7 +74,7 @@ function init() {
 
     renderer = new THREE.WebGLRenderer({
         antialias: true,
-        logarithmicDepthBuffer: true,
+        // logarithmicDepthBuffer: true,
     });
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight);

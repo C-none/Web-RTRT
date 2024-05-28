@@ -112,7 +112,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
     var wo: vec3f;
     var dist: f32;
     if ENABLE_DI {
-        for (var i = 0; i < 8; i = i + 1) {
+        for (var i = 0; i < 16; i = i + 1) {
             light = sampleLight();
             let samplePdf = sampleLightProb(light);
             wo = light.position - shadingPoint;
@@ -156,7 +156,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
                 if ENABLE_RIS {
                     var tmpReservoir = ReservoirDI();
                     var selected_pHat: f32 = 0.0;
-                    for (var i = 0; i < 8; i = i + 1) {
+                    for (var i = 0; i < 24; i = i + 1) {
                         light = sampleLight();
                         let samplePdf = sampleLightProb(light);
                         wo = light.position - samplePoint;
@@ -230,7 +230,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
             }
             if ENABLE_GI {
                 if reservoirPrevGI.W > 0.0 {
-                    reservoirPrevGI.M = min(reservoirPrevGI.M, 20);
+                    reservoirPrevGI.M = min(reservoirPrevGI.M, 12);
                     wo = reservoirPrevGI.xs - shadingPoint;
                     dist = length(wo);
                     wo = normalize(wo);
@@ -284,26 +284,26 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
     }
 
     // // random select light
-        {
-        let light = sampleLight();
-        let samplePdf = sampleLightProb(light);
-        var bsdf = vec3f(0.1);
-        var wo = light.position - shadingPoint;
-        let dist = length(wo);
-        wo = normalize(wo);
-        var visibility = 1.0;
-        var geometryTerm = vec3f(1.0);
-        // bsdf = BSDF(pointInfo, wo, -direction);
-        bsdf = pointInfo.baseColor * dot(pointInfo.normalShading, wo);
-        geometryTerm = light.color * light.intensity / (dist * dist);
-        if traceShadowRay(shadingPoint, wo, dist) {
-            visibility = 0.0;
-        } else {
-            visibility = 1.0;
-        }
-        color = bsdf * geometryTerm * visibility / samplePdf;
-        // color = bsdf;
-    }
+    //     {
+    //     let light = sampleLight();
+    //     let samplePdf = sampleLightProb(light);
+    //     var bsdf = vec3f(0.1);
+    //     var wo = light.position - shadingPoint;
+    //     let dist = length(wo);
+    //     wo = normalize(wo);
+    //     var visibility = 1.0;
+    //     var geometryTerm = vec3f(1.0);
+    //     // bsdf = BSDF(pointInfo, wo, -direction);
+    //     bsdf = pointInfo.baseColor * dot(pointInfo.normalShading, wo);
+    //     geometryTerm = light.color * light.intensity / (dist * dist);
+    //     if traceShadowRay(shadingPoint, wo, dist) {
+    //         visibility = 0.0;
+    //     } else {
+    //         visibility = 1.0;
+    //     }
+    //     color = bsdf * geometryTerm * visibility / samplePdf;
+    //     // color = bsdf;
+    // }
 
     // // reference color
     // for (var i = 0; i < 11; i = i + 1) {
