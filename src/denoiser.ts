@@ -7,7 +7,7 @@ class Denoiser {
     device: webGPUDevice;
     camera: CameraManager;
     patchSize: number = 8;
-    iteration: number = 0;
+    iteration: number = 3;
     ENABLE_DENOISE: boolean = true;
     reflectance: GPUBuffer;
     motionVec: GPUTexture;

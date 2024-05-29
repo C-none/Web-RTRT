@@ -10,13 +10,14 @@ override zNear: f32 = 0.01;
 override zFar: f32 = 50.0;
 
 fn ACESToneMapping(color: vec3f, adapted_lum: f32) -> vec3f {
-    const A = 2.51;
-    const B = 0.03;
-    const C = 2.43;
-    const D = 0.59;
-    const E = 0.14;
-    let ret = color * adapted_lum;
-    return (ret * (A * ret + B)) / (ret * (C * ret + D) + E);
+    return vec3f(1.0) - exp(-color * adapted_lum);
+    // const A = 2.51;
+    // const B = 0.03;
+    // const C = 2.43;
+    // const D = 0.59;
+    // const E = 0.14;
+    // let ret = color * adapted_lum;
+    // return (ret * (A * ret + B)) / (ret * (C * ret + D) + E);
     // return color;
 }
 

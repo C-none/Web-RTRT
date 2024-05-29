@@ -26,7 +26,18 @@ import filterVariance from './denoise/filterVariance.wgsl?raw';
 import atrous from './denoise/atrous.wgsl?raw';
 import denoiseAccum from './denoise/denoiseAccum.wgsl?raw';
 
-import display from './display.wgsl?raw';
+import reconstruct_dilated from './FSR2/reconstruct_dilated.wgsl?raw'
+import depthClip from './FSR2/depthClip.wgsl?raw'
+import lock from './FSR2/lock.wgsl?raw'
+//import display from './display.wgsl?raw';
+import display from './FSR2/display.wgsl?raw';
+import racs from './FSR2/racs.wgsl?raw'
+import FSR_common from './FSR2/FSR_common.wgsl?raw'
+
+import FXAA from './FSR2/FXAA.wgsl?raw'
+
+
+import raw_display from './raw_display.wgsl?raw';
 
 const insert = (wgsl: string, snippets: any) =>
     wgsl.replace(/\/\/ #include\s+<(.*?)>;/g, (_, name: any): string => snippets[name]);
@@ -59,7 +70,15 @@ class ShaderManager {
         "atrous.wgsl": atrous,
         "denoiseAccum.wgsl": denoiseAccum,
 
+        'FSR_common.wgsl': FSR_common,
+        "reconstruct_dilated.wgsl": reconstruct_dilated,
+        "depthClip.wgsl": depthClip,
+        'lock.wgsl': lock,
         "display.wgsl": display,
+        'racs.wgsl': racs,
+
+        'FXAA.wgsl':FXAA,
+        'raw_display.wgsl':raw_display,
     }
     constructor() {
         for (const name in this.shaders) {
