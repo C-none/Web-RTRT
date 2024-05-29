@@ -434,7 +434,7 @@ class Application {
             case sceneName.box:
                 {
                     if (!save_pos) {
-                        this.camera.camera.position.set(-10, 3, 0);
+                        this.camera.camera.position.set(-8, 3, 0);
                         this.camera.controls.target.set(0, 3, 0);
                     }
                     this.model = boxModel;

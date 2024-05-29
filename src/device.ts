@@ -13,6 +13,7 @@ class webGPUDevice {
         const devicePixelRatio = window.devicePixelRatio || 1;
         const p1080 = { width: 1920, height: 1080 };
         const p720 = { width: 1280, height: 720 };
+        // const p720 = { width: 720, height: 480 };
         let vertical = false;
         if (size.width < size.height) {
             vertical = true;

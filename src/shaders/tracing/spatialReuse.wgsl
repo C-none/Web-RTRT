@@ -116,10 +116,10 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u) {
             reservoirDI.W = 0.0;
             reservoirDI.w_sum = 0.0;
         } else {
-            reservoirDI.W = reservoirDI.w_sum / max(5e-2, pHat) / f32(reservoirDI.M);
+            reservoirDI.W = reservoirDI.w_sum / max(5e-2, pHat * f32(reservoirDI.M)) ;
         }
         if ENABLE_GI {
-            reservoirGI.W = reservoirGI.w_sum / max(1e-3, luminance(reservoirGI.Lo)) / f32(reservoirGI.M);
+            reservoirGI.W = reservoirGI.w_sum / max(1e-3, luminance(reservoirGI.Lo) * f32(reservoirGI.M))  ;
         }
     }
 

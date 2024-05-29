@@ -67,7 +67,7 @@ fn BSDF(shadingPoint: PointInfo, wo: vec3f, wi: vec3f) -> vec3f {
 
 fn BSDFLuminance(shadingPoint: PointInfo, wo: vec3f, wi: vec3f) -> f32 {
     let ndoto = max(0., dot(shadingPoint.normalShading, wo));
-    return INVPI * ndoto;
+    return luminance(shadingPoint.baseColor) * INVPI * ndoto;
     // return 1;
 
     // let h = normalize(wi + wo);

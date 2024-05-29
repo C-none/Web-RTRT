@@ -41,7 +41,12 @@
       "
     ></span>
     <script src="https://cdn.bootcss.com/FileSaver.js/1.3.8/FileSaver.min.js"></script>
-    <button onclick="download('webgpuCanvas')">download</button>
+    <button
+      style="position: absolute; top: 0%; align-self: center"
+      onclick="download('webgpuCanvas')"
+    >
+      download
+    </button>
     <script>
       function download(selector) {
         // 通过 id 获取目标 canvas 元素
