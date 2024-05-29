@@ -288,13 +288,21 @@ let box = await loader.loadAsync("./assets/box/scene.gltf") as any;
 }
 let boxModel = new gltfmodel();
 await boxModel.init(box, GPUdevice);
-
+let loadCount = 0;
 let roomModel = new gltfmodel();
 loader.load("./assets/room/scene.gltf", (gltf) => {
     let room = gltf.scene;
     room.scale.set(5, 5, 5);
     roomModel.init(room, GPUdevice).then(() => {
-        LogOnScreen("room building finished!");
+        let show = "room building finished!";
+        if (loadCount < 2) {
+            loadCount++
+            show += " Wait for downloading other models...";
+        } else {
+            show += " Enjoy!";
+            (gui.children[0] as Controller).enable();
+        }
+        LogOnScreen(show);
     });
 });
 
@@ -307,7 +315,15 @@ loader.load("./assets/sea/scene.gltf", (gltf) => {
         child.geometry.scale(0.02, 0.02, 0.02);
     }
     seaModel.init(bath, GPUdevice).then(() => {
-        LogOnScreen("sea house building finished!");
+        let show = "sea building finished!";
+        if (loadCount < 2) {
+            loadCount++
+            show += " Wait for downloading other models...";
+        } else {
+            show += " Enjoy!";
+            (gui.children[0] as Controller).enable();
+        }
+        LogOnScreen(show);
     });
 });
 
@@ -319,8 +335,15 @@ loader.load("./assets/sponza/sponza.gltf", (gltf) => {
     sponzaBunny.geometry.scale(0.5, 0.5, 0.5);
     sponza.add(sponzaBunny);
     sponzaModel.init(sponza, GPUdevice).then(() => {
-        LogOnScreen("sponza building finished!");
-        (gui.children[0] as Controller).enable();
+        let show = "sponza building finished!";
+        if (loadCount < 2) {
+            loadCount++
+            show += " Wait for downloading other models...";
+        } else {
+            show += " Enjoy!";
+            (gui.children[0] as Controller).enable();
+        }
+        LogOnScreen(show);
     });
 
 });
