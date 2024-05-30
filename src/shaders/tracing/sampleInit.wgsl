@@ -127,6 +127,7 @@ fn unpackTriangleIndirect(triangle: PrimaryHitInfo, origin: vec3f) -> PointInfo 
     }
     // compute normal shading
     retInfo.normalShading = iterpolatedNormal;
+    // retInfo.normalShading = normalGeo;
     retInfo.normalGeo = normalGeo;
     return retInfo;
 }

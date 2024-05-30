@@ -134,6 +134,23 @@ let sponzaLight = Array<Light>();
             }
         }.bind(sponzaLight[i]);
     }
+    // sponzaLight = [new Light(new Float32Array([0, 5, -4]), new Float32Array([1, 1, 1]), 50)];
+    // let unit = [0, 0, -1];
+    // sponzaLight[0].velocity = unit;
+    // sponzaLight[0].transform = function (this: Light, time: number) {
+    //     const minBound = [0, 5, -6];
+    //     let maxBound = [0, 5, -4];
+    //     for (let j = 0; j < 3; j++) {
+    //         if (this.position[j] < minBound[j]) {
+    //             this.velocity[j] = Math.abs(this.velocity[j]);
+    //         }
+    //         if (this.position[j] > maxBound[j]) {
+    //             this.velocity[j] = -Math.abs(this.velocity[j]);
+    //         }
+    //         this.position[j] += this.velocity[j] * time / 1000 * 0.5;
+    //     }
+    // }.bind(sponzaLight[0]);
+
 }
 let boxLight = Array<Light>();
 {
@@ -289,20 +306,23 @@ let box = await loader.loadAsync("./assets/box/scene.gltf") as any;
 let boxModel = new gltfmodel();
 await boxModel.init(box, GPUdevice);
 let loadCount = 0;
+let judge = (show: string) => {
+    if (loadCount < 2) {
+        loadCount++
+        show += " Wait for downloading other models...";
+    } else {
+        show += " Enjoy!";
+        (gui.children[0] as Controller).enable();
+    }
+    LogOnScreen(show);
+}
 let roomModel = new gltfmodel();
 loader.load("./assets/room/scene.gltf", (gltf) => {
     let room = gltf.scene;
     room.scale.set(5, 5, 5);
     roomModel.init(room, GPUdevice).then(() => {
         let show = "room building finished!";
-        if (loadCount < 2) {
-            loadCount++
-            show += " Wait for downloading other models...";
-        } else {
-            show += " Enjoy!";
-            (gui.children[0] as Controller).enable();
-        }
-        LogOnScreen(show);
+        judge(show);
     });
 });
 
@@ -316,14 +336,7 @@ loader.load("./assets/sea/scene.gltf", (gltf) => {
     }
     seaModel.init(bath, GPUdevice).then(() => {
         let show = "sea building finished!";
-        if (loadCount < 2) {
-            loadCount++
-            show += " Wait for downloading other models...";
-        } else {
-            show += " Enjoy!";
-            (gui.children[0] as Controller).enable();
-        }
-        LogOnScreen(show);
+        judge(show);
     });
 });
 
@@ -336,14 +349,7 @@ loader.load("./assets/sponza/sponza.gltf", (gltf) => {
     sponza.add(sponzaBunny);
     sponzaModel.init(sponza, GPUdevice).then(() => {
         let show = "sponza building finished!";
-        if (loadCount < 2) {
-            loadCount++
-            show += " Wait for downloading other models...";
-        } else {
-            show += " Enjoy!";
-            (gui.children[0] as Controller).enable();
-        }
-        LogOnScreen(show);
+        judge(show);
     });
 
 });
@@ -448,6 +454,8 @@ class Application {
                     if (!save_pos) {
                         this.camera.camera.position.set(-4.5, 5.5, -4);
                         this.camera.controls.target.set(0, 5, 0);
+                        // this.camera.camera.position.set(-4.5, 5, -4);
+                        // this.camera.controls.target.set(0, 5, -4);
                     }
                     this.model = sponzaModel;
                     this.lights = new LightManager(sponzaLight, this.device);

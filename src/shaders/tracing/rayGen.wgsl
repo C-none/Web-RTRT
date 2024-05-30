@@ -103,7 +103,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
         loadReservoir(&previousReservoir, launchPreIndex, &reservoirPrevDI, &reservoirPrevGI, &_seed);
         pointPrev = loadGBufferAttri(&previousGBufferAttri, launchPreIndex);
     }
-    var _seed = tea(WorkgroupID.y * screen_size.x + WorkgroupID.x, ubo.seed, 2);
+    var _seed = tea(WorkgroupID.y * ((screen_size.x + 7) / 8) + WorkgroupID.x, ubo.seed, 4);
     var geometryTerm_luminance: f32;
     var bsdfLuminance: f32;
     var pHat: f32;
@@ -232,23 +232,26 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
             }
             if ENABLE_GI {
                 if reservoirPrevGI.W > 0.0 {
-                    reservoirPrevGI.M = min(reservoirPrevGI.M, 12);
+                    reservoirPrevGI.M = min(reservoirPrevGI.M, 4);
                     wo = reservoirPrevGI.xs - shadingPoint;
                     dist = length(wo);
                     wo = normalize(wo);
 
                     var flag = true;
-                    if f32(_seed & 0x7fffffff) / f32(0x80000000) < 1. / 8. {
-                // check visibility from light to sample point
-                        light = getLight(reservoirPrevGI.lightId);
-                        let dir = light.position - reservoirPrevGI.xs;
-                        let dist = length(dir);
-                        let wo = normalize(dir);
-                        if traceShadowRay(reservoirPrevGI.xs, wo, dist) {
-                            flag = false;
-                        }
-                    }
+                    // if f32(ubo.seed & 0x7fffffff) / f32(0x80000000) < 1. / 4 {
+                    // // // if f32(_seed & 0x7fffffff) / f32(0x80000000) < 1. / 8 {
+                    //     // check visibility from light to sample point
+                    //     color = vec3f(1.0);
+                    //     light = getLight(reservoirPrevGI.lightId);
+                    //     let dir = light.position - reservoirPrevGI.xs;
+                    //     let dist = length(dir);
+                    //     let wo = normalize(dir);
+                    //     if traceShadowRay(reservoirPrevGI.xs, wo, dist) {
+                    //         flag = false;
+                    //     }
+                    // }
                     if flag && dot(wo, pointInfo.normalShading) > 0.0 && dot(wo, pointInfo.normalGeo) > 0.0 && dot(-wo, reservoirPrevGI.ns) >= 0.0 {
+
                         pHat = luminance(reservoirPrevGI.Lo) / Jacobian(pointInfo.pos, reservoirPrevGI);
                         reservoirPrevGI.w_sum = pHat * reservoirPrevGI.W * f32(reservoirPrevGI.M);
 
@@ -329,7 +332,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
     storeGBuffer(launchIndex, pointInfo.pos, pointInfo.normalShading, pointInfo.baseColor, pointInfo.metallicRoughness);
     // // write reservoir
     storeReservoir(&currentReservoir, launchIndex, reservoirCurDI, reservoirCurGI, seed);
-    // storeColor(&frame, launchIndex, color / pointInfo.baseColor);
+    // storeColor(&frame, launchIndex, pointInfo.baseColor);
     // storeColor(&frame, launchIndex, (pointInfo.normalShading + 1) / 2);
-    // storeColor
+    // storeColor(&frame, launchIndex, color);
 }
