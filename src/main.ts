@@ -29,14 +29,14 @@ let conf = {
     flag: false,
     scene: sceneName.box,
     upscaleRatio: GPUdevice.upscaleRatio,
-    superResolution: false,
+    superResolution: true,
     dynamicLight: false,
     GI_RIS: true,
     DI: true,
     GI: false,
-    spatial: false,
-    temporal: false,
-    denoiser: false,
+    spatial: true,
+    temporal: true,
+    denoiser: true,
 }
 let gui = new GUI({ title: 'Settings' });
 {
