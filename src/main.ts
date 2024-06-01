@@ -74,9 +74,13 @@ let gui = new GUI({ title: 'Settings' });
     gui.add({
         title: () => {
             alert(
-                "Please try this demo after upgrading your Chrome or Edge browser to the latest version.\n" +
+                "Please try this demo after upgrading your Chrome or Edge browser to the latest version.\n\n" +
                 "For windows users with multiple graphic cards, please make sure you are using the high-performance graphic card. \n\n" +
-                "You can set it in settings -> system -> display -> graphic settings ->  select the browser you are using -> options -> high-performance"
+                "You can set it in settings -> system -> display -> graphic settings ->  select the browser you are using -> options -> high-performance\n\n" +
+                "Operation:\n" +
+                "hold left mouse button: rotate camera\n" +
+                "hold right mouse button: move camera\n" +
+                "mouse wheel: zoom in/out\n"
             );
         }
     }, 'title').name('Read Me ^.^');

@@ -1,0 +1,82 @@
+Date : 2024-06-01 14:31:13
+Directory : d:\BaiduNetdiskDownload\Web-RTRT\src
+Total : 50 files,  7930 codes, 1064 comments, 1078 blanks, all 10072 lines
+
+Languages
++------------+------------+------------+------------+------------+------------+
+| language   | files      | code       | comment    | blank      | total      |
++------------+------------+------------+------------+------------+------------+
+| TypeScript |         19 |      4,021 |        259 |        292 |      4,572 |
+| WGSL       |         31 |      3,909 |        805 |        786 |      5,500 |
++------------+------------+------------+------------+------------+------------+
+
+Directories
++----------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                       | files      | code       | comment    | blank      | total      |
++----------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                          |         50 |      7,930 |      1,064 |      1,078 |     10,072 |
+| . (Files)                                                                  |         15 |      3,811 |        236 |        266 |      4,313 |
+| shaders                                                                    |         32 |      3,991 |        806 |        801 |      5,598 |
+| shaders (Files)                                                            |          8 |        338 |         89 |         58 |        485 |
+| shaders\FSR2                                                               |          7 |      1,777 |        485 |        539 |      2,801 |
+| shaders\denoise                                                            |          7 |        431 |         51 |         59 |        541 |
+| shaders\tracing                                                            |         10 |      1,445 |        181 |        145 |      1,771 |
+| util                                                                       |          3 |        128 |         22 |         11 |        161 |
++----------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++----------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| filename                                                                   | language   | code       | comment    | blank      | total      |
++----------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| d:\BaiduNetdiskDownload\Web-RTRT\src\bvh.ts                                | TypeScript |        231 |          6 |         15 |        252 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\camera.ts                             | TypeScript |        115 |         20 |         11 |        146 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\computeWorker.ts                      | TypeScript |         21 |          0 |          4 |         25 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\denoiser.ts                           | TypeScript |        451 |          6 |         28 |        485 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\device.ts                             | TypeScript |         84 |          2 |         10 |         96 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\display.ts                            | TypeScript |        830 |         33 |         48 |        911 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\gltf.ts                               | TypeScript |        378 |         26 |         25 |        429 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\light.ts                              | TypeScript |         84 |          1 |          4 |         89 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\main.ts                               | TypeScript |        448 |         38 |         39 |        525 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\modelView.ts                          | TypeScript |         64 |         18 |         31 |        113 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\raytracing.ts                         | TypeScript |        544 |          6 |         18 |        568 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\sample.ts                             | TypeScript |        319 |         62 |         17 |        398 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\screenBuffer.ts                       | TypeScript |         71 |          0 |          4 |         75 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\FSR2\FSR_common.wgsl          | WGSL       |        370 |         30 |         60 |        460 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\FSR2\FXAA.wgsl                | WGSL       |        212 |         61 |         70 |        343 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\FSR2\depthClip.wgsl           | WGSL       |        233 |         69 |         86 |        388 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\FSR2\display.wgsl             | WGSL       |        506 |        169 |        198 |        873 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\FSR2\lock.wgsl                | WGSL       |        122 |         30 |         31 |        183 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\FSR2\racs.wgsl                | WGSL       |        122 |         67 |         17 |        206 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\FSR2\reconstruct_dilated.wgsl | WGSL       |        212 |         59 |         77 |        348 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\basic.instanced.vert.wgsl     | WGSL       |         18 |          0 |          4 |         22 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\compute.position.wgsl         | WGSL       |         50 |         10 |          5 |         65 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\denoise\atrous.wgsl           | WGSL       |         85 |         14 |         11 |        110 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\denoise\denoiseAccum.wgsl     | WGSL       |         26 |          4 |          5 |         35 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\denoise\denoiseCommon.wgsl    | WGSL       |         10 |          1 |          3 |         14 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\denoise\filterVariance.wgsl   | WGSL       |         54 |          2 |          9 |         65 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\denoise\firefly.wgsl          | WGSL       |         88 |          8 |         12 |        108 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\denoise\preloadInvoker.wgsl   | WGSL       |         13 |          0 |          0 |         13 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\denoise\temperalAccum.wgsl    | WGSL       |        155 |         22 |         19 |        196 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\lightUpdate.wgsl              | WGSL       |         46 |          0 |          2 |         48 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\manager.ts                    | TypeScript |         82 |          1 |         15 |         98 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\position.frag.wgsl            | WGSL       |          7 |          0 |          0 |          7 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\raw_display.wgsl              | WGSL       |         32 |         25 |          7 |         64 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\tracing\BSDF.wgsl             | WGSL       |         56 |         15 |         11 |         82 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\tracing\accumulate.wgsl       | WGSL       |         66 |         18 |         11 |         95 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\tracing\common.wgsl           | WGSL       |         54 |          1 |         10 |         65 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\tracing\light.wgsl            | WGSL       |         37 |          2 |          4 |         43 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\tracing\rayGen.wgsl           | WGSL       |        241 |         77 |         20 |        338 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\tracing\reservoir.wgsl        | WGSL       |         99 |         16 |         10 |        125 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\tracing\sampleInit.wgsl       | WGSL       |        112 |         15 |         15 |        142 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\tracing\slopeAABBTest.wgsl    | WGSL       |        535 |          5 |         33 |        573 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\tracing\spatialReuse.wgsl     | WGSL       |        102 |         16 |         11 |        129 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\tracing\trace.wgsl            | WGSL       |        143 |         16 |         20 |        179 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\utils.wgsl                    | WGSL       |         38 |         38 |         15 |         91 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\shaders\vBuffer.wgsl                  | WGSL       |         65 |         15 |         10 |         90 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\util\box.ts                           | TypeScript |         43 |          1 |          2 |         46 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\util\cube.ts                          | TypeScript |         40 |          7 |          2 |         49 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\util\math.ts                          | TypeScript |         45 |         14 |          7 |         66 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\utils.ts                              | TypeScript |          4 |          0 |          1 |          5 |
+| d:\BaiduNetdiskDownload\Web-RTRT\src\vBuffer.ts                            | TypeScript |        167 |         18 |         11 |        196 |
+| Total                                                                      |            |      7,930 |      1,064 |      1,078 |     10,072 |
++----------------------------------------------------------------------------+------------+------------+------------+------------+------------+
