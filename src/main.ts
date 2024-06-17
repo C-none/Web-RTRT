@@ -33,7 +33,7 @@ let conf = {
     dynamicLight: false,
     GI_RIS: true,
     DI: true,
-    GI: false,
+    GI: true,
     spatial: true,
     temporal: true,
     denoiser: true,
@@ -62,10 +62,10 @@ let gui = new GUI({ title: 'Settings' });
     gui.add(conf, 'GI_RIS').name('RIS initialize GI samples').onChange(() => {
         conf.flag = true;
     });
-    gui.add(conf, 'spatial').name('Spatial reuse').onChange(() => {
+    gui.add(conf, 'temporal').name('Temporal reuse').onChange(() => {
         conf.flag = true;
     });
-    gui.add(conf, 'temporal').name('Temporal reuse').onChange(() => {
+    gui.add(conf, 'spatial').name('Spatial reuse').onChange(() => {
         conf.flag = true;
     });
     gui.add(conf, 'denoiser').name('Denoiser').onChange(() => {
@@ -159,8 +159,8 @@ let sponzaLight = Array<Light>();
 let boxLight = Array<Light>();
 {
     boxLight = [
-        new Light(new Float32Array([2, 5.5, 0]), new Float32Array([0.8, 0.6, 0.0]), 10),
-        new Light(new Float32Array([-2, 5.5, 0]), new Float32Array([0.9, 0.3, 1]), 25),
+        new Light(new Float32Array([2, 3, 0]), new Float32Array([1, 0.9, 0.8]), 7),
+        new Light(new Float32Array([-2, 3, 0]), new Float32Array([0.9, 0.9, 1]), 7),
         // new Light(new Float32Array([2, 0.5, 2]), new Float32Array([1, 1, 1]), 1),
     ];
     // for (let i = 0; i < 16; i++) {

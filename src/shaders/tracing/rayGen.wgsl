@@ -232,7 +232,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID: vec3u, @builtin(workg
             }
             if ENABLE_GI {
                 if reservoirPrevGI.W > 0.0 {
-                    reservoirPrevGI.M = min(reservoirPrevGI.M, 4);
+                    reservoirPrevGI.M = min(reservoirPrevGI.M, 8);
                     wo = reservoirPrevGI.xs - shadingPoint;
                     dist = length(wo);
                     wo = normalize(wo);
